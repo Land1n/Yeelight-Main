@@ -20,7 +20,7 @@ dependencies = [
 include = ["yeelight_logic*", "yeelight_network*", "yeelight_app*"]
 
 [tool.setuptools]
-py-modules = ["yeelight_config", "main"]
+py-modules = ["yeelight_config", "main", "configure_phone"]
 
 [tool.setuptools.package-data]
 yeelight_app = ["static/*.html"]
