@@ -27,7 +27,11 @@ class PhoneSetupTests(unittest.TestCase):
                 patch.object(configure_phone, "ROOT", root),
                 patch.object(configure_phone, "ENV_FILE", env_file),
                 patch.object(configure_phone, "EXAMPLE_FILE", example_file),
-                patch.object(configure_phone, "lan_ipv4", return_value="192.168.1.10"),
+                patch.object(
+                    configure_phone,
+                    "lan_ipv4",
+                    return_value=["192.168.1.10", "10.0.0.8"],
+                ),
                 contextlib.redirect_stdout(output),
             ):
                 configure_phone.main()
@@ -37,6 +41,7 @@ class PhoneSetupTests(unittest.TestCase):
             self.assertEqual(settings["YEELIGHT_PORT"], "8000")
             self.assertGreaterEqual(len(settings["YEELIGHT_API_TOKEN"]), 40)
             self.assertIn("http://192.168.1.10:8000", output.getvalue())
+            self.assertIn("http://10.0.0.8:8000", output.getvalue())
             self.assertNotIn(settings["YEELIGHT_API_TOKEN"], output.getvalue())
 
 

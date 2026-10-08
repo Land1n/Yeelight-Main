@@ -15,7 +15,7 @@ ENV_FILE = ROOT / ".env"
 EXAMPLE_FILE = ROOT / ".env.example"
 
 
-def lan_ipv4() -> str | None:
+def lan_ipv4() -> list[str]:
     if os.name == "nt":
         command = (
             "$physical = Get-NetAdapter -Physical | "
@@ -33,10 +33,15 @@ def lan_ipv4() -> str | None:
                 text=True,
                 timeout=10,
             )
-            for line in result.stdout.splitlines():
-                address = line.strip()
-                if address and not address.startswith("127."):
-                    return address
+            addresses = list(
+                dict.fromkeys(
+                    address
+                    for line in result.stdout.splitlines()
+                    if (address := line.strip()) and not address.startswith("127.")
+                )
+            )
+            if addresses:
+                return addresses
         except (OSError, subprocess.SubprocessError):
             pass
 
@@ -44,9 +49,9 @@ def lan_ipv4() -> str | None:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
             probe.connect(("192.0.2.1", 80))
             address = probe.getsockname()[0]
-            return address if not address.startswith("127.") else None
+            return [address] if not address.startswith("127.") else []
     except OSError:
-        return None
+        return []
 
 
 def main() -> None:
@@ -68,10 +73,12 @@ def main() -> None:
     except (TypeError, ValueError) as exc:
         raise SystemExit("YEELIGHT_PORT in .env must be between 1 and 65535") from exc
 
-    address = lan_ipv4()
+    addresses = lan_ipv4()
     print("Phone access is configured in .env (server binds to the local network).")
-    if address:
-        print(f"Server URL for the phone: http://{address}:{port}")
+    if addresses:
+        print("Server URL candidates (use the address on the same Wi-Fi/LAN as the phone):")
+        for address in addresses:
+            print(f"  http://{address}:{port}")
     else:
         print(f"Server listens on port {port}. Find the computer IPv4 address with ipconfig.")
     print("Enter the URL above and the YEELIGHT_API_TOKEN from .env in the Flet app.")
