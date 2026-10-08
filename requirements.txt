@@ -1,0 +1,6 @@
+fastapi>=0.110,<1
+flet>=0.80,<1
+httpx>=0.27,<1
+python-dotenv>=1.0,<2
+uvicorn[standard]>=0.29,<1
+yeelight>=0.7,<1

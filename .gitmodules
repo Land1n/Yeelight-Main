@@ -1,0 +1,9 @@
+[submodule "yeelight_logic"]
+	path = yeelight_logic
+	url = https://github.com/Land1n/Yeelight-Logic.git
+[submodule "yeelight_network"]
+	path = yeelight_network
+	url = https://github.com/Land1n/Yeelight-Network.git
+[submodule "yeelight_app"]
+	path = yeelight_app
+	url = https://github.com/Land1n/Yeelight-App.git

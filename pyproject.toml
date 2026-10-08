@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yeelight-main"
+version = "0.1.0"
+description = "Yeelight LAN server and web client"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110,<1",
+    "flet>=0.80,<1",
+    "httpx>=0.27,<1",
+    "python-dotenv>=1.0,<2",
+    "uvicorn[standard]>=0.29,<1",
+    "yeelight>=0.7,<1",
+]
+
+[tool.setuptools.packages.find]
+include = ["yeelight_logic*", "yeelight_network*", "yeelight_app*"]
+
+[tool.setuptools]
+py-modules = ["yeelight_config", "main"]
+
+[tool.setuptools.package-data]
+yeelight_app = ["static/*.html"]
