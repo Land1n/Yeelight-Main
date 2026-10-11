@@ -23,4 +23,4 @@ include = ["yeelight_logic*", "yeelight_network*", "yeelight_app*"]
 py-modules = ["yeelight_config", "main", "configure_phone"]
 
 [tool.setuptools.package-data]
-yeelight_app = ["static/*.html"]
+yeelight_app = ["static/*.html", "static/css/*.css", "static/js/*.js"]

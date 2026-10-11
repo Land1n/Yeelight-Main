@@ -45,6 +45,8 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.bulb.brightness, 60)
         self.controller.execute("color 192.168.1.45 #33aaff")
         self.assertEqual(self.bulb.rgb, (51, 170, 255))
+        self.controller.execute("color 192.168.1.45 0 128 255")
+        self.assertEqual(self.bulb.rgb, (0, 128, 255))
         self.controller.execute("temp 192.168.1.45 4000")
         self.assertEqual(self.bulb.temperature, 4000)
 
@@ -54,11 +56,19 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(found, [{"ip": "192.168.1.46"}])
         self.assertEqual(len(self.controller.execute("list")["bulbs"]), 2)
 
+    def test_remove_bulb(self) -> None:
+        self.controller.execute("remove 192.168.1.45")
+        self.assertEqual(self.controller.known_bulbs(), [])
+        with self.assertRaises(CommandError):
+            self.controller.execute("remove 192.168.1.45")
+
     def test_rejects_invalid_commands_and_addresses(self) -> None:
         for command in (
             "wat",
             "brightness 192.168.1.45 101",
             "color 192.168.1.45 red",
+            "color 192.168.1.45 0 256 1",
+            "color 192.168.1.45 -1 10 20",
             "on 192.168.1.99",
             "add not-an-ip",
         ):
@@ -68,4 +78,3 @@ class ControllerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
