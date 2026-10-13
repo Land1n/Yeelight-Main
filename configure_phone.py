@@ -1,78 +1,52 @@
 from __future__ import annotations
 
-import os
 import secrets
 import shutil
-import socket
-import subprocess
 from pathlib import Path
 
 from dotenv import dotenv_values, set_key
+
+from yeelight_network_utils import get_lan_addresses
 
 
 ROOT = Path(__file__).resolve().parent
 ENV_FILE = ROOT / ".env"
 EXAMPLE_FILE = ROOT / ".env.example"
+lan_ipv4 = get_lan_addresses
 
 
-def lan_ipv4() -> list[str]:
-    if os.name == "nt":
-        command = (
-            "$physical = Get-NetAdapter -Physical | "
-            "Where-Object Status -eq 'Up' | "
-            "Select-Object -ExpandProperty Name; "
-            "Get-NetIPConfiguration | "
-            "Where-Object { $_.InterfaceAlias -in $physical -and $_.IPv4DefaultGateway } | "
-            "ForEach-Object { $_.IPv4Address | ForEach-Object IPAddress }"
-        )
-        try:
-            result = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command", command],
-                capture_output=True,
-                check=True,
-                text=True,
-                timeout=10,
-            )
-            addresses = list(
-                dict.fromkeys(
-                    address
-                    for line in result.stdout.splitlines()
-                    if (address := line.strip()) and not address.startswith("127.")
-                )
-            )
-            if addresses:
-                return addresses
-        except (OSError, subprocess.SubprocessError):
-            pass
-
+def _server_port(settings: dict[str, str | None]) -> int:
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-            probe.connect(("192.0.2.1", 80))
-            address = probe.getsockname()[0]
-            return [address] if not address.startswith("127.") else []
-    except OSError:
-        return []
+        port = int(settings.get("YEELIGHT_PORT") or "8000")
+        if 1 <= port <= 65535:
+            return port
+    except ValueError:
+        pass
+    raise SystemExit("YEELIGHT_PORT in .env must be between 1 and 65535")
 
 
-def main() -> None:
-    if not ENV_FILE.exists():
-        shutil.copyfile(EXAMPLE_FILE, ENV_FILE)
+def configure_phone_access(
+    env_file: Path | None = None,
+    example_file: Path | None = None,
+) -> int:
+    env_file = env_file or ENV_FILE
+    example_file = example_file or EXAMPLE_FILE
+    if not env_file.exists():
+        shutil.copyfile(example_file, env_file)
 
-    settings = dotenv_values(ENV_FILE)
-    token = settings.get("YEELIGHT_API_TOKEN", "").strip()
+    settings = dotenv_values(env_file)
+    port = _server_port(settings)
+    token = (settings.get("YEELIGHT_API_TOKEN") or "").strip()
     if not token:
         token = secrets.token_urlsafe(32)
 
-    set_key(ENV_FILE, "YEELIGHT_HOST", "0.0.0.0")
-    set_key(ENV_FILE, "YEELIGHT_API_TOKEN", token)
+    set_key(env_file, "YEELIGHT_HOST", "0.0.0.0")
+    set_key(env_file, "YEELIGHT_API_TOKEN", token)
+    return port
 
-    try:
-        port = int(settings.get("YEELIGHT_PORT", "8000"))
-        if not 1 <= port <= 65535:
-            raise ValueError
-    except (TypeError, ValueError) as exc:
-        raise SystemExit("YEELIGHT_PORT in .env must be between 1 and 65535") from exc
 
+def main() -> None:
+    port = configure_phone_access()
     addresses = lan_ipv4()
     print("Phone access is configured in .env (server binds to the local network).")
     if addresses:

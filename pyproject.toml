@@ -16,11 +16,15 @@ dependencies = [
     "yeelight>=0.7,<1",
 ]
 
-[tool.setuptools.packages.find]
-include = ["yeelight_logic*", "yeelight_network*", "yeelight_app*"]
-
 [tool.setuptools]
-py-modules = ["yeelight_config", "main", "configure_phone"]
+packages = ["yeelight_logic", "yeelight_network", "yeelight_app"]
+include-package-data = false
+py-modules = [
+    "yeelight_config",
+    "yeelight_network_utils",
+    "main",
+    "configure_phone",
+]
 
 [tool.setuptools.package-data]
 yeelight_app = ["static/*.html", "static/css/*.css", "static/js/*.js"]

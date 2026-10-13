@@ -57,6 +57,7 @@ class ApiTests(unittest.TestCase):
             "/static/js/bulbs.js": "class BulbList",
             "/static/js/mode-editor.js": "class ModeEditor",
             "/static/js/modes.js": "class ModeList",
+            "/static/js/mode-presets.js": "Фиолетовое переливание",
             "/static/css/app.css": ".task-controls",
         }
         for path, expected_content in scripts.items():
@@ -65,9 +66,29 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(expected_content, response.text)
 
+    def test_health_check_is_public_and_does_not_expose_configuration(self) -> None:
+        response = self.client.get("/api/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
     def test_api_requires_token(self) -> None:
-        response = self.client.get("/api/bulbs")
-        self.assertEqual(response.status_code, 401)
+        protected_requests = (
+            ("GET", "/api/bulbs", None),
+            ("GET", "/api/settings", None),
+            ("GET", "/api/modes", None),
+            ("POST", "/api/commands", {"command": "list"}),
+            ("POST", "/api/modes", {
+                "name": "test",
+                "steps": [{"action": "on", "values": []}],
+            }),
+            ("DELETE", "/api/modes/test", None),
+            ("POST", "/api/modes/test/start", {"ip": "192.168.1.45"}),
+            ("POST", "/api/modes/test/stop", None),
+        )
+        for method, path, payload in protected_requests:
+            with self.subTest(method=method, path=path):
+                response = self.client.request(method, path, json=payload)
+                self.assertEqual(response.status_code, 401)
 
     def test_command_and_bulb_listing(self) -> None:
         response = self.client.post(
@@ -82,6 +103,33 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(response.json()["bulbs"]), 1)
         self.assertEqual(response.json()["bulbs"][0]["ip"], "192.168.1.45")
         self.assertTrue(response.json()["bulbs"][0]["online"])
+
+    def test_added_bulbs_are_persisted_via_api(self) -> None:
+        storage_path = Path(self.temp_dir.name) / "bulbs.json"
+        controller = YeelightController(storage_path=storage_path)
+        client = TestClient(create_app(controller))
+        response = client.post(
+            "/api/commands",
+            json={"command": "add 192.168.1.45"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(storage_path.is_file())
+
+        restarted = YeelightController(storage_path=storage_path)
+        self.assertEqual(restarted.known_bulbs(), [{"ip": "192.168.1.45"}])
+
+    def test_bulb_storage_failure_is_reported_by_api(self) -> None:
+        invalid_parent = Path(self.temp_dir.name) / "not-a-directory"
+        invalid_parent.write_text("file", encoding="utf-8")
+        client = TestClient(
+            create_app(YeelightController(storage_path=invalid_parent / "bulbs.json"))
+        )
+        response = client.post(
+            "/api/commands",
+            json={"command": "add 192.168.1.45"},
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Could not save lamp addresses", response.json()["detail"])
 
     def test_remove_lamp_and_manage_looping_mode(self) -> None:
         mode_file = Path(self.temp_dir.name) / "modes.json"

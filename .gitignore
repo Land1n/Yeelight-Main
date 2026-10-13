@@ -10,3 +10,5 @@ dist/
 .ruff_cache/
 .flet/
 .dart_tool/
+/data/modes.json
+/data/bulbs.json

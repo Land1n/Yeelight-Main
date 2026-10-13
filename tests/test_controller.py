@@ -1,6 +1,10 @@
+import json
+import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
-from yeelight_logic import CommandError, YeelightController
+from yeelight_logic import CommandError, StorageError, YeelightController
 
 
 class FakeBulb:
@@ -61,6 +65,73 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.known_bulbs(), [])
         with self.assertRaises(CommandError):
             self.controller.execute("remove 192.168.1.45")
+
+    def test_bulb_addresses_persist_across_controller_restarts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage_path = Path(directory) / "bulbs.json"
+            controller = YeelightController(storage_path=storage_path)
+            controller.add("192.168.1.45")
+
+            restarted = YeelightController(storage_path=storage_path)
+            self.assertEqual(
+                restarted.known_bulbs(),
+                [{"ip": "192.168.1.45"}],
+            )
+            restarted.remove("192.168.1.45")
+            self.assertEqual(
+                json.loads(storage_path.read_text(encoding="utf-8")),
+                [],
+            )
+
+    def test_discovered_bulbs_are_written_in_one_persistent_list(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage_path = Path(directory) / "bulbs.json"
+            controller = YeelightController(
+                storage_path=storage_path,
+                discovery=lambda: [
+                    {"ip": "192.168.1.46"},
+                    {"ip": "192.168.1.47"},
+                ],
+            )
+            controller.discover()
+
+            restarted = YeelightController(storage_path=storage_path)
+            self.assertEqual(
+                restarted.known_bulbs(),
+                [{"ip": "192.168.1.46"}, {"ip": "192.168.1.47"}],
+            )
+
+    def test_concurrent_additions_are_not_lost_from_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage_path = Path(directory) / "bulbs.json"
+            controller = YeelightController(storage_path=storage_path)
+            addresses = [f"192.168.1.{ip}" for ip in range(1, 21)]
+            with ThreadPoolExecutor(max_workers=8) as workers:
+                list(workers.map(controller.add, addresses))
+
+            restarted = YeelightController(storage_path=storage_path)
+            self.assertEqual(
+                [bulb["ip"] for bulb in restarted.known_bulbs()],
+                sorted(addresses),
+            )
+
+    def test_invalid_bulb_storage_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage_path = Path(directory) / "bulbs.json"
+            storage_path.write_text('{"not": "a list"}', encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "Could not load lamp addresses"):
+                YeelightController(storage_path=storage_path)
+
+    def test_storage_write_failure_does_not_add_lamp_in_memory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            invalid_parent = Path(directory) / "not-a-directory"
+            invalid_parent.write_text("file", encoding="utf-8")
+            controller = YeelightController(
+                storage_path=invalid_parent / "bulbs.json"
+            )
+            with self.assertRaises(StorageError):
+                controller.add("192.168.1.45")
+            self.assertEqual(controller.known_bulbs(), [])
 
     def test_rejects_invalid_commands_and_addresses(self) -> None:
         for command in (

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <title>Yeelight Console</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true">✦</div>
+        <div><h1>Yeelight Console</h1><p class="subtitle">Управление лампами в локальной сети</p></div>
+      </div>
+      <div class="connection" role="status"><span id="status-dot" class="dot"></span><span id="status-text">Проверяем сервер…</span></div>
+    </header>
+    <div class="grid">
+      <section class="card">
+        <h2>Подключение</h2>
+        <div class="settings">
+          <label class="field">Адрес сервера<input id="server-url" type="url" autocomplete="url"></label>
+          <label class="field">API-токен (если настроен)<input id="api-token" type="password" autocomplete="current-password"></label>
+        </div>
+        <p class="notice">Токен сохраняется только до закрытия вкладки. Не передавайте его по недоверенной сети.</p>
+      </section>
+      <section class="card">
+        <div class="bulb-toolbar"><h2 style="margin:0">Мои лампы</h2><button id="discover" type="button">Найти лампы</button></div>
+        <div id="bulbs" class="bulb-list"><div class="empty">Загрузка списка…</div></div>
+        <p id="monitor-settings" class="notice"></p>
+      </section>
+      <section class="card">
+        <h2>Готовые режимы</h2>
+        <p class="notice">Добавьте цветовой цикл в сохранённые режимы, затем запустите его на выбранной лампе.</p>
+        <div id="mode-presets" class="preset-grid" aria-label="Готовые цветовые режимы"></div>
+      </section>
+      <section class="card">
+        <h2>Конструктор режимов</h2>
+        <form id="mode-form" class="mode-form">
+          <div class="mode-fields">
+            <label class="field">Название режима<input id="mode-name" maxlength="60" required placeholder="Например, вечер"></label>
+            <label class="field">Пауза между командами, сек<input id="mode-delay" type="number" min="0.1" max="3600" step="0.1" value="1" required></label>
+          </div>
+          <div id="task-list" class="task-list" aria-label="Задачи режима"></div>
+          <button id="add-task" type="button">+ Добавить задачу</button>
+          <div class="mode-form-actions">
+            <button id="save-mode" class="primary" type="submit">Сохранить режим</button>
+            <button id="cancel-mode-edit" type="button" hidden>Отменить редактирование</button>
+          </div>
+        </form>
+        <div id="modes" class="mode-list"><div class="empty">Загрузка режимов…</div></div>
+      </section>
+      <section class="card console">
+        <h2>Командная строка</h2>
+        <div id="output" class="console-output" aria-live="polite" aria-label="Вывод команд"></div>
+        <form id="command-form" class="command-row">
+          <input id="command" autocomplete="off" spellcheck="false" aria-label="Команда" placeholder="Например: discover или on 192.168.1.45">
+          <button class="primary" type="submit">Выполнить</button>
+        </form>
+        <div class="quick" aria-label="Быстрые команды">
+          <button type="button" data-command="discover">discover</button>
+          <button type="button" data-command="list">list</button>
+          <button type="button" data-command="add ">add IP</button>
+        </div>
+      </section>
+    </div>
+  </main>
+    <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

@@ -2,15 +2,6 @@
 cd /d "%~dp0"
 title Yeelight - setup
 
-if exist ".gitmodules" (
-    git submodule update --init --recursive
-    if errorlevel 1 (
-        echo Could not initialize Git submodules.
-        pause
-        exit /b 1
-    )
-)
-
 if not exist ".venv\Scripts\python.exe" (
     where py >nul 2>nul
     if not errorlevel 1 (
@@ -30,7 +21,7 @@ if not exist ".env" (
     echo Created .env from .env.example. Edit it before connecting from a phone.
 )
 
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -e .
 if errorlevel 1 (
     echo Dependency installation failed.
     pause

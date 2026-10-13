@@ -176,20 +176,22 @@ class FletAppTests(unittest.TestCase):
                 return {"status": "ok"}
 
         class Client:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *_args):
-                return None
+            closed = False
 
             async def request(self, _method, url, **_kwargs):
                 return Response(url)
 
+            async def aclose(self):
+                self.closed = True
+
         page = FakePage()
         preferences = Preferences()
+        client = Client()
         with patch("yeelight_app.__main__.ft.SharedPreferences", return_value=preferences):
             main(page)
             self.assertEqual(page.services, [preferences])
+        self.assertTrue(inspect.iscoroutinefunction(page.on_close))
+        self.assertTrue(inspect.iscoroutinefunction(page.on_disconnect))
 
         async def verify_connection_settings():
             await page.task()
@@ -216,8 +218,10 @@ class FletAppTests(unittest.TestCase):
             await connect.on_click(None)
             self.assertEqual(preferences.values["server_url"], "http://192.168.1.25:8000")
             self.assertEqual(preferences.values["api_token"], "new-token")
+            await page.on_close(None)
+            self.assertTrue(client.closed)
 
-        with patch("yeelight_app.api_client.httpx.AsyncClient", return_value=Client()):
+        with patch("yeelight_app.api_client.httpx.AsyncClient", return_value=client):
             asyncio.run(verify_connection_settings())
 
 
