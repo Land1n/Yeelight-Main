@@ -55,7 +55,7 @@ def main() -> None:
             print(f"  http://{address}:{port}")
     else:
         print(f"Server listens on port {port}. Find the computer IPv4 address with ipconfig.")
-    print("Enter the URL above and the YEELIGHT_API_TOKEN from .env in the Flet app.")
+    print("Open the URL above in a browser and enter YEELIGHT_API_TOKEN from .env if requested.")
     print("Allow Python through Windows Firewall for Private networks only.")
     print("Restart the server for the new settings to take effect.")
 

@@ -3,6 +3,7 @@ import time
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -47,6 +48,9 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Yeelight Console", response.text)
         self.assertIn('id="command-form"', response.text)
+        self.assertIn('id="reconnect"', response.text)
+        self.assertIn('class="wifi-fields"', response.text)
+        self.assertIn('class="wifi-confirm"', response.text)
         self.assertIn('/static/css/app.css', response.text)
         self.assertIn('/static/js/app.js', response.text)
 
@@ -77,6 +81,11 @@ class ApiTests(unittest.TestCase):
             ("GET", "/api/settings", None),
             ("GET", "/api/modes", None),
             ("POST", "/api/commands", {"command": "list"}),
+            (
+                "POST",
+                "/api/provisioning/wifi",
+                {"ip": "192.168.13.1", "ssid": "POCO F4", "password": "test-pass-123"},
+            ),
             ("POST", "/api/modes", {
                 "name": "test",
                 "steps": [{"action": "on", "values": []}],
@@ -103,6 +112,37 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(response.json()["bulbs"]), 1)
         self.assertEqual(response.json()["bulbs"][0]["ip"], "192.168.1.45")
         self.assertTrue(response.json()["bulbs"][0]["online"])
+
+    def test_wifi_provisioning_is_loopback_only_and_does_not_return_credentials(self) -> None:
+        payload = {
+            "ip": "192.168.13.1",
+            "ssid": "POCO F4",
+            "password": "test-pass-123",
+        }
+        remote_client = TestClient(create_app(), client=("192.168.1.20", 1234))
+        denied = remote_client.post(
+            "/api/provisioning/wifi", json=payload, headers=self.headers
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        local_client = TestClient(create_app(), client=("127.0.0.1", 1234))
+        with patch("yeelight_network.api.configure_wifi", return_value="sent_unconfirmed") as configure:
+            response = local_client.post(
+                "/api/provisioning/wifi", json=payload, headers=self.headers
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("test-pass-123", response.text)
+        self.assertNotIn("password", response.text)
+        configure.assert_called_once_with("192.168.13.1", "POCO F4", "test-pass-123")
+
+        invalid = local_client.post(
+            "/api/provisioning/wifi",
+            json={**payload, "password": "short"},
+            headers=self.headers,
+        )
+        self.assertEqual(invalid.status_code, 422)
+        self.assertNotIn("short", invalid.text)
 
     def test_added_bulbs_are_persisted_via_api(self) -> None:
         storage_path = Path(self.temp_dir.name) / "bulbs.json"

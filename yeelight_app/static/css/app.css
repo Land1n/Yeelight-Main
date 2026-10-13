@@ -41,12 +41,27 @@
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #748197; }
     .dot.ok { background: #a9e34b; box-shadow: 0 0 12px #a9e34b88; }
     .dot.error { background: #ff6b6b; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .card { min-width: 0; border: 1px solid #293544; border-radius: 16px; padding: 20px; background: #171f2a; }
-    .card h2 { margin: 0 0 15px; font-size: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+    .card { min-width: 0; border: 1px solid #293544; border-radius: 16px; padding: 22px; background: linear-gradient(145deg, #19232f, #151d27); box-shadow: 0 12px 30px #0002; }
+    .card h2 { margin: 0 0 15px; font-size: 17px; letter-spacing: -.01em; }
+    .connection-card, .wifi-card { grid-column: 1 / -1; }
     .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { display: grid; gap: 7px; color: #aab6c4; font-size: 12px; }
-    .field input { width: 100%; }
+    .connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+    .connection-actions .notice { margin: 0; }
+    .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .card-heading h2 { margin-bottom: 5px; }
+    .section-intro { margin: 0; color: #8f9db0; font-size: 13px; }
+    .experimental-badge { flex: 0 0 auto; border: 1px solid #5a4d2d; border-radius: 999px; padding: 6px 10px; color: #f3cd77; background: #332d20; font-size: 11px; font-weight: 650; }
+    .wifi-form { display: grid; gap: 16px; }
+    .wifi-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .wifi-confirm { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 13px 14px; border: 1px solid #344153; border-radius: 12px; color: #c0cad7; background: #131b25; font-size: 13px; line-height: 1.45; }
+    .wifi-confirm input { flex: 0 0 auto; width: 17px; height: 17px; margin: 1px 0 0; accent-color: #a9e34b; }
+    .wifi-submit { width: 100%; min-height: 46px; }
+    .wifi-notice { margin: 14px 0 0; }
+    .wifi-result { margin: 12px 0 0; color: #c4f06f; font-size: 13px; line-height: 1.5; }
+    .wifi-result.error { color: #ff8585; }
+    .field { display: grid; min-width: 0; gap: 7px; color: #aab6c4; font-size: 13px; }
+    .field input { width: 100%; min-height: 44px; }
     .bulb-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .bulb-list { display: grid; gap: 10px; margin-top: 14px; }
     .bulb { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #293544; border-radius: 12px; background: #131b25; }
@@ -129,6 +144,7 @@
       .console { grid-column: auto; }
       .card { padding: 16px; }
       .settings { grid-template-columns: 1fr; }
+      .wifi-fields { grid-template-columns: 1fr; }
       .mode-form .mode-fields { grid-template-columns: 1fr; }
       header { align-items: flex-start; }
       .connection { padding-top: 10px; white-space: nowrap; }
@@ -139,4 +155,8 @@
       .task-item { grid-template-columns: minmax(0, 1fr) auto; }
       .task-value { grid-column: 1 / -1; }
       .menu-panel { right: auto; left: 0; }
+    }
+    @media (min-width: 701px) and (max-width: 900px) {
+      .wifi-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .wifi-fields .field:last-child { grid-column: 1 / -1; }
     }

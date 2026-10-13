@@ -14,13 +14,14 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from starlette.concurrency import run_in_threadpool
 
 from yeelight_logic import CommandError, DeviceError, StorageError, YeelightController
+from yeelight_network.miio import MiIOError, configure_wifi, is_valid_wifi_password
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,12 @@ class ModeRequest(BaseModel):
 
 class ModeStartRequest(BaseModel):
     ip: str
+
+
+class WifiSetupRequest(BaseModel):
+    ip: str = Field(min_length=7, max_length=45)
+    ssid: str = Field(min_length=1, max_length=32)
+    password: SecretStr
 
 
 def create_app(
@@ -220,6 +227,58 @@ def create_app(
             "poll_interval_seconds": poll_interval,
             "offline_timeout_seconds": offline_timeout,
         }
+
+    @app.post("/api/provisioning/wifi", dependencies=[Depends(authorize)])
+    async def provision_wifi(request: Request, setup: WifiSetupRequest) -> dict[str, str]:
+        peer = request.client.host if request.client else ""
+        try:
+            if not ipaddress.ip_address(peer).is_loopback:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Wi-Fi setup is only allowed from this computer.",
+                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="Wi-Fi setup is only allowed from this computer.",
+            ) from exc
+
+        if len(setup.ssid.encode("utf-8")) > 32 or "\x00" in setup.ssid:
+            raise HTTPException(status_code=422, detail="Invalid Wi-Fi network name.")
+        password = setup.password.get_secret_value()
+        if not is_valid_wifi_password(password):
+            setup.password = SecretStr("")
+            password = ""
+            raise HTTPException(
+                status_code=422,
+                detail="Wi-Fi password must be 8–63 bytes or a 64-digit hexadecimal key.",
+            )
+        try:
+            outcome = await run_in_threadpool(
+                configure_wifi,
+                setup.ip,
+                setup.ssid,
+                password,
+            )
+        except MiIOError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        finally:
+            password = ""
+            setup.password = SecretStr("")
+
+        messages = {
+            "sent_unconfirmed": (
+                "The request was sent, but the bulb did not confirm it. "
+                "Reconnect this computer to the target Wi-Fi and discover the bulb."
+            ),
+            "responded_unverified": (
+                "The bulb responded to the request, but the change is unverified. "
+                "Reconnect this computer to the "
+                "target Wi-Fi and discover the bulb to verify the result."
+            ),
+            "rejected": "The bulb rejected the Wi-Fi setup request.",
+        }
+        return {"status": outcome, "message": messages[outcome]}
 
     @app.post("/api/commands", dependencies=[Depends(authorize)])
     async def command(request: CommandRequest) -> dict[str, Any]:

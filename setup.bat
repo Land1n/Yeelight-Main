@@ -29,5 +29,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Setup complete. Use start-all.bat to start the server and Flet app.
+echo Setup complete. Use start-all.bat to start the server and open its web interface.
 pause

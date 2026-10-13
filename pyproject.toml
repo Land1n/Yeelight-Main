@@ -9,12 +9,15 @@ description = "Yeelight LAN server and web client"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.110,<1",
-    "flet>=0.80,<1",
-    "httpx>=0.27,<1",
+    "cryptography>=42,<47",
     "python-dotenv>=1.0,<2",
     "uvicorn[standard]>=0.29,<1",
     "yeelight>=0.7,<1",
 ]
+
+[project.optional-dependencies]
+diagnostics = ["bleak>=0.22,<2"]
+test = ["httpx>=0.27,<1"]
 
 [tool.setuptools]
 packages = ["yeelight_logic", "yeelight_network", "yeelight_app"]
@@ -22,7 +25,6 @@ include-package-data = false
 py-modules = [
     "yeelight_config",
     "yeelight_network_utils",
-    "main",
     "configure_phone",
 ]
 

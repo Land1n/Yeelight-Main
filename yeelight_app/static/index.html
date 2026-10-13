@@ -17,13 +17,39 @@
       <div class="connection" role="status"><span id="status-dot" class="dot"></span><span id="status-text">Проверяем сервер…</span></div>
     </header>
     <div class="grid">
-      <section class="card">
+      <section class="card connection-card">
         <h2>Подключение</h2>
         <div class="settings">
           <label class="field">Адрес сервера<input id="server-url" type="url" autocomplete="url"></label>
-          <label class="field">API-токен (если настроен)<input id="api-token" type="password" autocomplete="current-password"></label>
+          <label class="field">API-токен<input id="api-token" type="password" autocomplete="current-password"></label>
         </div>
-        <p class="notice">Токен сохраняется только до закрытия вкладки. Не передавайте его по недоверенной сети.</p>
+        <div class="connection-actions">
+          <button id="reconnect" type="button">Переподключиться к серверу</button>
+          <p class="notice">Токен возьмите из `YEELIGHT_API_TOKEN` в `.env`. Он хранится только до закрытия вкладки.</p>
+        </div>
+      </section>
+      <section class="card wifi-card">
+        <div class="card-heading">
+          <div>
+            <h2>Подключение лампы к Wi-Fi</h2>
+            <p class="section-intro">Yeelight Color Bulb · `yeelink.light.color1`</p>
+          </div>
+          <span class="experimental-badge">Экспериментально</span>
+        </div>
+        <form id="wifi-form" class="wifi-form" autocomplete="off">
+          <div class="wifi-fields">
+            <label class="field">IP лампы в режиме настройки<input id="wifi-ip" type="text" inputmode="decimal" value="192.168.13.1" required></label>
+            <label class="field">Название сети (SSID)<input id="wifi-ssid" type="text" maxlength="32" value="POCO F4" required></label>
+            <label class="field">Пароль сети<input id="wifi-password" type="password" autocomplete="new-password" required></label>
+          </div>
+          <label class="wifi-confirm">
+            <input id="wifi-confirm" type="checkbox" required>
+            <span>Понимаю, что лампа отключится от временной точки доступа при переключении сети.</span>
+          </label>
+          <button id="wifi-submit" class="primary wifi-submit" type="submit">Отправить настройки Wi-Fi</button>
+        </form>
+        <p class="notice wifi-notice">Используйте сеть 2,4 ГГц. Пароль не сохраняется приложением. После отправки подключите компьютер к целевой сети и нажмите «Найти лампы»: только обнаружение подтвердит подключение.</p>
+        <p id="wifi-result" class="wifi-result" role="status" aria-live="polite"></p>
       </section>
       <section class="card">
         <div class="bulb-toolbar"><h2 style="margin:0">Мои лампы</h2><button id="discover" type="button">Найти лампы</button></div>

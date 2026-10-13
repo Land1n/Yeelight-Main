@@ -13,18 +13,31 @@ const serverInput = $("#server-url");
 const apiRequest = createApi(serverInput, tokenInput);
 const editor = new ModeEditor($("#task-list"));
 let busy = false;
+let apiAuthorized = false;
 let bulbs;
 let modes;
 let editingModeName = null;
 
 serverInput.value = window.location.origin;
+let storageWarningShown = false;
+
+function warnStorageUnavailable() {
+  if (storageWarningShown) return;
+  storageWarningShown = true;
+  log("Браузер не разрешил сохранить токен для этой вкладки; введите его снова после перезагрузки.", "error");
+}
+
 try {
   tokenInput.value = sessionStorage.getItem("yeelight-api-token") || "";
-} catch {}
+} catch {
+  warnStorageUnavailable();
+}
 tokenInput.addEventListener("input", () => {
   try {
     sessionStorage.setItem("yeelight-api-token", tokenInput.value);
-  } catch {}
+  } catch {
+    warnStorageUnavailable();
+  }
 });
 
 function log(text, kind = "") {
@@ -165,6 +178,9 @@ function bindEvents() {
     runCommand(text);
   });
   $("#discover").addEventListener("click", () => runCommand("discover"));
+  $("#reconnect").addEventListener("click", reconnectToServer);
+  $("#wifi-form").addEventListener("submit", submitWifiSetup);
+  tokenInput.addEventListener("change", () => initialize());
   $("#add-task").addEventListener("click", () => editor.addStep());
   $("#cancel-mode-edit").addEventListener("click", resetModeEditor);
   $("#mode-form").addEventListener("submit", saveMode);
@@ -179,6 +195,52 @@ function bindEvents() {
       }
     });
   });
+}
+
+async function reconnectToServer() {
+  const button = $("#reconnect");
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = "Подключение…";
+  setConnection(false, "Подключаемся к серверу…");
+  try {
+    await initialize();
+  } finally {
+    button.disabled = false;
+    button.textContent = "Переподключиться к серверу";
+  }
+}
+
+async function submitWifiSetup(event) {
+  event.preventDefault();
+  const submit = $("#wifi-submit");
+  const result = $("#wifi-result");
+  const passwordInput = $("#wifi-password");
+  const payload = {
+    ip: $("#wifi-ip").value.trim(),
+    ssid: $("#wifi-ssid").value,
+    password: passwordInput.value,
+  };
+  submit.disabled = true;
+  result.textContent = "Отправка запроса…";
+  passwordInput.value = "";
+  try {
+    const response = await apiRequest("/api/provisioning/wifi", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    result.textContent = response.message;
+    result.classList.toggle("error", response.status === "rejected");
+    log(response.message, response.status === "rejected" ? "error" : "command");
+  } catch (error) {
+    result.textContent = `Не удалось отправить настройки: ${error.message}`;
+    result.classList.add("error");
+    log(`Настройки Wi-Fi не отправлены: ${error.message}`, "error");
+  } finally {
+    payload.password = "";
+    passwordInput.value = "";
+    submit.disabled = false;
+  }
 }
 
 async function saveMode(event) {
@@ -211,12 +273,26 @@ async function refreshSettings() {
 }
 
 async function initialize() {
+  if (!tokenInput.value.trim()) {
+    apiAuthorized = false;
+    setConnection(true, "Введите API-токен");
+    bulbsElement.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Введите YEELIGHT_API_TOKEN из файла .env.";
+    bulbsElement.append(empty);
+    $("#modes").replaceChildren();
+    return;
+  }
   try {
     await apiRequest("/api/health");
-    setConnection(true, "Сервер подключён");
     await refreshBulbs();
     await refreshSettings();
+    await refreshModes();
+    apiAuthorized = true;
+    setConnection(true, "Сервер подключён");
   } catch (error) {
+    apiAuthorized = false;
     setConnection(false, "Нет подключения");
     bulbsElement.replaceChildren();
     const empty = document.createElement("div");
@@ -229,7 +305,7 @@ async function initialize() {
 
 function startPolling() {
   window.setInterval(() => {
-    if (busy) return;
+    if (busy || !apiAuthorized) return;
     refreshBulbs().catch((error) =>
       log(`Список ламп не обновлён: ${error.message}`, "error"));
     modes.refreshStatuses().catch((error) =>

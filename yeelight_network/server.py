@@ -42,12 +42,12 @@ def main() -> None:
     if host in {"0.0.0.0", "::"}:
         addresses = get_lan_addresses()
         if addresses:
-            print("Phone app server address candidates (use one on the same Wi-Fi/LAN):")
+            print("Web interface address candidates (open one on the same Wi-Fi/LAN):")
             for address in addresses:
                 print(f"  http://{address}:{port}")
         else:
             print(f"Server listens on all interfaces at port {port}.")
-        print("Enter this address and YEELIGHT_API_TOKEN in the Flet app.")
+        print("Open one of these addresses in a browser; enter YEELIGHT_API_TOKEN if requested.")
     uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
