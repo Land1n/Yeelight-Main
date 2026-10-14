@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from yeelight_logic import YeelightController
 from yeelight_network.api import create_app
+from yeelight_network.miio import MiIOError
 
 
 class FakeBulb:
@@ -51,6 +52,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn('id="reconnect"', response.text)
         self.assertIn('class="wifi-fields"', response.text)
         self.assertIn('class="wifi-confirm"', response.text)
+        self.assertIn('id="lan-control-form"', response.text)
+        self.assertIn("Отдельно включить LAN Control", response.text)
         self.assertIn('/static/css/app.css', response.text)
         self.assertIn('/static/js/app.js', response.text)
 
@@ -69,6 +72,8 @@ class ApiTests(unittest.TestCase):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(expected_content, response.text)
+        app_script = self.client.get("/static/js/app.js")
+        self.assertIn("async function submitLanControl(event)", app_script.text)
 
     def test_health_check_is_public_and_does_not_expose_configuration(self) -> None:
         response = self.client.get("/api/health")
@@ -85,6 +90,11 @@ class ApiTests(unittest.TestCase):
                 "POST",
                 "/api/provisioning/wifi",
                 {"ip": "192.168.13.1", "ssid": "POCO F4", "password": "test-pass-123"},
+            ),
+            (
+                "POST",
+                "/api/provisioning/lan-control",
+                {"ip": "192.168.1.45"},
             ),
             ("POST", "/api/modes", {
                 "name": "test",
@@ -143,6 +153,64 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(invalid.status_code, 422)
         self.assertNotIn("short", invalid.text)
+
+    def test_lan_control_is_explicit_loopback_only_and_reports_unverified_status(self) -> None:
+        payload = {"ip": "192.168.1.45", "confirmed": True}
+        remote_client = TestClient(
+            create_app(), client=("192.168.1.20", 1234)
+        )
+        denied = remote_client.post(
+            "/api/provisioning/lan-control",
+            json=payload,
+            headers=self.headers,
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        local_client = TestClient(
+            create_app(), client=("127.0.0.1", 1234)
+        )
+        with patch(
+            "yeelight_network.api.enable_lan_control",
+            return_value="responded_unverified",
+        ) as enable:
+            response = local_client.post(
+                "/api/provisioning/lan-control",
+                json=payload,
+                headers=self.headers,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "responded_unverified")
+        self.assertIn("does not yet confirm LAN Control", response.json()["message"])
+        enable.assert_called_once_with("192.168.1.45")
+
+    def test_lan_control_requires_explicit_confirmation(self) -> None:
+        local_client = TestClient(
+            create_app(), client=("127.0.0.1", 1234)
+        )
+        with patch("yeelight_network.api.enable_lan_control") as enable:
+            response = local_client.post(
+                "/api/provisioning/lan-control",
+                json={"ip": "192.168.1.45"},
+                headers=self.headers,
+            )
+        self.assertEqual(response.status_code, 422)
+        enable.assert_not_called()
+
+    def test_lan_control_api_reports_device_errors(self) -> None:
+        local_client = TestClient(
+            create_app(), client=("127.0.0.1", 1234)
+        )
+        with patch(
+            "yeelight_network.api.enable_lan_control",
+            side_effect=MiIOError("test device error"),
+        ):
+            response = local_client.post(
+                "/api/provisioning/lan-control",
+                json={"ip": "192.168.1.45", "confirmed": True},
+                headers=self.headers,
+            )
+        self.assertEqual(response.status_code, 400)
 
     def test_added_bulbs_are_persisted_via_api(self) -> None:
         storage_path = Path(self.temp_dir.name) / "bulbs.json"

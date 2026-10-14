@@ -180,6 +180,7 @@ function bindEvents() {
   $("#discover").addEventListener("click", () => runCommand("discover"));
   $("#reconnect").addEventListener("click", reconnectToServer);
   $("#wifi-form").addEventListener("submit", submitWifiSetup);
+  $("#lan-control-form").addEventListener("submit", submitLanControl);
   tokenInput.addEventListener("change", () => initialize());
   $("#add-task").addEventListener("click", () => editor.addStep());
   $("#cancel-mode-edit").addEventListener("click", resetModeEditor);
@@ -239,6 +240,36 @@ async function submitWifiSetup(event) {
   } finally {
     payload.password = "";
     passwordInput.value = "";
+    submit.disabled = false;
+  }
+}
+
+async function submitLanControl(event) {
+  event.preventDefault();
+  const submit = $("#lan-control-submit");
+  const result = $("#lan-control-result");
+  submit.disabled = true;
+  result.classList.remove("error");
+  result.textContent = "Запрос включения LAN Control…";
+  try {
+    const response = await apiRequest("/api/provisioning/lan-control", {
+      method: "POST",
+      body: JSON.stringify({
+        ip: $("#lan-control-ip").value.trim(),
+        confirmed: $("#lan-control-confirm").checked,
+      }),
+    });
+    result.textContent = response.message;
+    result.classList.toggle(
+      "error",
+      response.status === "rejected" || response.status === "sent_unconfirmed",
+    );
+    log(response.message, response.status === "rejected" ? "error" : "command");
+  } catch (error) {
+    result.textContent = `Не удалось включить LAN Control: ${error.message}`;
+    result.classList.add("error");
+    log(`LAN Control не включён: ${error.message}`, "error");
+  } finally {
     submit.disabled = false;
   }
 }

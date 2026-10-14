@@ -51,6 +51,26 @@
         <p class="notice wifi-notice">Используйте сеть 2,4 ГГц. Пароль не сохраняется приложением. После отправки подключите компьютер к целевой сети и нажмите «Найти лампы»: только обнаружение подтвердит подключение.</p>
         <p id="wifi-result" class="wifi-result" role="status" aria-live="polite"></p>
       </section>
+      <section class="card wifi-card">
+        <div class="card-heading">
+          <div>
+            <h2>Включение LAN Control</h2>
+            <p class="section-intro">Отдельный шаг после подключения лампы к домашней сети</p>
+          </div>
+          <span class="experimental-badge">Требует проверки</span>
+        </div>
+        <p class="notice">Введите текущий IP лампы в домашней сети. Этот запрос не настраивает Wi-Fi. Сервер проверит модель и временно использует токен miIO из ответа устройства; токен не сохраняется. Разрешено только с этого компьютера.</p>
+        <form id="lan-control-form" class="wifi-form" autocomplete="off">
+          <label class="field">IP лампы в домашней сети<input id="lan-control-ip" type="text" inputmode="decimal" required placeholder="Например, 192.168.1.45"></label>
+          <label class="wifi-confirm">
+            <input id="lan-control-confirm" type="checkbox" required>
+            <span>Я отдельно подтверждаю включение LAN Control для этой лампы.</span>
+          </label>
+          <button id="lan-control-submit" class="primary wifi-submit" type="submit">Отдельно включить LAN Control</button>
+        </form>
+        <p class="notice">Ответ лампы ещё не доказывает доступность LAN. После запроса выполните диагностику TCP 55443, SSDP и `get_prop` по инструкции в README.</p>
+        <p id="lan-control-result" class="wifi-result" role="status" aria-live="polite"></p>
+      </section>
       <section class="card">
         <div class="bulb-toolbar"><h2 style="margin:0">Мои лампы</h2><button id="discover" type="button">Найти лампы</button></div>
         <div id="bulbs" class="bulb-list"><div class="empty">Загрузка списка…</div></div>

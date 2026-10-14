@@ -21,7 +21,12 @@ from pydantic import BaseModel, Field, SecretStr
 from starlette.concurrency import run_in_threadpool
 
 from yeelight_logic import CommandError, DeviceError, StorageError, YeelightController
-from yeelight_network.miio import MiIOError, configure_wifi, is_valid_wifi_password
+from yeelight_network.miio import (
+    MiIOError,
+    configure_wifi,
+    enable_lan_control,
+    is_valid_wifi_password,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +50,11 @@ class WifiSetupRequest(BaseModel):
     ip: str = Field(min_length=7, max_length=45)
     ssid: str = Field(min_length=1, max_length=32)
     password: SecretStr
+
+
+class LanControlRequest(BaseModel):
+    ip: str = Field(min_length=7, max_length=45)
+    confirmed: bool = False
 
 
 def create_app(
@@ -277,6 +287,48 @@ def create_app(
                 "target Wi-Fi and discover the bulb to verify the result."
             ),
             "rejected": "The bulb rejected the Wi-Fi setup request.",
+        }
+        return {"status": outcome, "message": messages[outcome]}
+
+    @app.post("/api/provisioning/lan-control", dependencies=[Depends(authorize)])
+    async def provision_lan_control(
+        request: Request, setup: LanControlRequest
+    ) -> dict[str, str]:
+        peer = request.client.host if request.client else ""
+        try:
+            if not ipaddress.ip_address(peer).is_loopback:
+                raise HTTPException(
+                    status_code=403,
+                    detail="LAN Control setup is only allowed from this computer.",
+                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="LAN Control setup is only allowed from this computer.",
+            ) from exc
+
+        if not setup.confirmed:
+            raise HTTPException(
+                status_code=422,
+                detail="Explicit confirmation is required to enable LAN Control.",
+            )
+
+        try:
+            outcome = await run_in_threadpool(enable_lan_control, setup.ip)
+        except MiIOError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        messages = {
+            "sent_unconfirmed": (
+                "The request was sent without a device response. "
+                "Run the LAN Control diagnostics before using the bulb."
+            ),
+            "responded_unverified": (
+                "The bulb acknowledged the request. This does not yet confirm "
+                "LAN Control; run the diagnostics to check port 55443, SSDP, "
+                "and get_prop."
+            ),
+            "rejected": "The bulb rejected the LAN Control request.",
         }
         return {"status": outcome, "message": messages[outcome]}
 

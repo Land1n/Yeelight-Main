@@ -6,7 +6,7 @@ import ipaddress
 import json
 import socket
 import struct
-import time
+from dataclasses import dataclass
 from typing import Any
 
 from cryptography.hazmat.primitives import padding
@@ -21,6 +21,13 @@ _SUPPORTED_MODEL = "yeelink.light.color1"
 
 class MiIOError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class _MiIOResponse:
+    payload: dict[str, Any]
+    device_id: int
+    timestamp: int
 
 
 def is_valid_wifi_password(password: str) -> bool:
@@ -48,15 +55,22 @@ def _decode_response(
     source: tuple[str, int],
     target: str,
     token: bytes,
-) -> dict[str, Any]:
+    expected_device_id: int,
+    expected_request_id: int,
+) -> _MiIOResponse:
     if (
         source[0] != target
         or len(packet) < 48
         or packet[:2] != b"\x21\x31"
         or int.from_bytes(packet[2:4], "big") != len(packet)
-        or not hmac.compare_digest(
-            hashlib.md5(packet[:16] + token + packet[32:]).digest(), packet[16:32]
-        )
+    ):
+        raise MiIOError("Device response failed miIO packet validation.")
+
+    _, _, _, device_id, timestamp = struct.unpack(">HHIII", packet[:16])
+    if device_id != expected_device_id:
+        raise MiIOError("Device response came from an unexpected miIO device.")
+    if not hmac.compare_digest(
+        hashlib.md5(packet[:16] + token + packet[32:]).digest(), packet[16:32]
     ):
         raise MiIOError("Device response failed miIO packet validation.")
 
@@ -70,9 +84,14 @@ def _decode_response(
         decoded = json.loads(plaintext.rstrip(b"\x00").decode("utf-8"))
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise MiIOError("Device returned an unreadable miIO response.") from exc
-    if not isinstance(decoded, dict):
+    if (
+        not isinstance(decoded, dict)
+        or not isinstance(decoded.get("id"), int)
+        or isinstance(decoded.get("id"), bool)
+        or decoded["id"] != expected_request_id
+    ):
         raise MiIOError("Device returned an unexpected miIO response.")
-    return decoded
+    return _MiIOResponse(decoded, device_id, timestamp)
 
 
 def _send_request(
@@ -83,10 +102,11 @@ def _send_request(
     token: bytes,
     method: str,
     params: list[Any] | dict[str, Any],
+    request_id: int,
     timeout: float,
-) -> dict[str, Any] | None:
+) -> _MiIOResponse | None:
     payload = json.dumps(
-        {"id": int(time.time()), "method": method, "params": params},
+        {"id": request_id, "method": method, "params": params},
         separators=(",", ":"),
     ).encode("utf-8") + b"\x00"
     key = hashlib.md5(token).digest()
@@ -104,7 +124,9 @@ def _send_request(
         response, source = client.recvfrom(2048)
     except socket.timeout:
         return None
-    return _decode_response(response, source, target, token)
+    return _decode_response(
+        response, source, target, token, device_id, request_id
+    )
 
 
 def _open_session(
@@ -117,6 +139,8 @@ def _open_session(
     except socket.timeout as exc:
         raise MiIOError("The device did not answer the miIO handshake.") from exc
     if source[0] != target or len(handshake) != 32 or handshake[:2] != b"\x21\x31":
+        raise MiIOError("The device did not return a valid miIO handshake.")
+    if int.from_bytes(handshake[2:4], "big") != 32:
         raise MiIOError("The device did not return a valid miIO handshake.")
     token = handshake[16:32]
     if token in (bytes(16), b"\xff" * 16):
@@ -134,16 +158,41 @@ def _device_info(
     device_id: int,
     stamp: int,
     token: bytes,
+    request_id: int,
     timeout: float,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], _MiIOResponse]:
     response = _send_request(
-        client, target, device_id, stamp, token, "miIO.info", [], timeout
+        client,
+        target,
+        device_id,
+        stamp,
+        token,
+        "miIO.info",
+        [],
+        request_id,
+        timeout,
     )
-    result = response.get("result") if response else None
+    if response is None:
+        raise MiIOError("The device did not answer the miIO info request.")
+    if "error" in response.payload:
+        if not isinstance(response.payload["error"], dict):
+            raise MiIOError("Device returned a malformed miIO error response.")
+        raise MiIOError("The device rejected the miIO info request.")
+    if "result" not in response.payload:
+        raise MiIOError("Device returned an unexpected miIO info response.")
+    result = response.payload["result"]
     details = result[0] if isinstance(result, list) and result else result
     if not isinstance(details, dict):
         raise MiIOError("The device did not return standard miIO info fields.")
-    return details
+    return details, response
+
+
+def _next_request_id(request_id: int) -> int:
+    return 1 if request_id >= 9998 else request_id + 1
+
+
+def _next_timestamp(timestamp: int) -> int:
+    return (timestamp + 1) & 0xFFFFFFFF
 
 
 def request_device_info(ip: str, timeout: float = 3.0) -> dict[str, Any]:
@@ -151,7 +200,9 @@ def request_device_info(ip: str, timeout: float = 3.0) -> dict[str, Any]:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
             device_id, stamp, token = _open_session(client, target, timeout)
-            info = _device_info(client, target, device_id, stamp, token, timeout)
+            info, _ = _device_info(
+                client, target, device_id, stamp, token, 1, timeout
+            )
     except OSError as exc:
         raise MiIOError("Could not communicate with the miIO device.") from exc
     return {
@@ -175,7 +226,9 @@ def configure_wifi(
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
             device_id, stamp, token = _open_session(client, target, timeout)
-            info = _device_info(client, target, device_id, stamp, token, timeout)
+            info, info_response = _device_info(
+                client, target, device_id, stamp, token, 1, timeout
+            )
             if info.get("model") != _SUPPORTED_MODEL:
                 raise MiIOError(
                     "Wi-Fi setup is enabled only for detected model yeelink.light.color1."
@@ -184,14 +237,60 @@ def configure_wifi(
                 client,
                 target,
                 device_id,
-                stamp + 1,
+                _next_timestamp(info_response.timestamp),
                 token,
                 "miIO.config_router",
                 {"ssid": ssid, "passwd": password, "uid": 0},
+                _next_request_id(info_response.payload["id"]),
                 timeout,
             )
     except OSError as exc:
         raise MiIOError("Could not send the Wi-Fi setup request to the device.") from exc
-    if response and response.get("error"):
+    if response is None:
+        return "sent_unconfirmed"
+    if "error" in response.payload:
+        if not isinstance(response.payload["error"], dict):
+            raise MiIOError("Device returned a malformed miIO error response.")
         return "rejected"
-    return "sent_unconfirmed" if response is None else "responded_unverified"
+    if "result" not in response.payload:
+        raise MiIOError("Device returned an unexpected miIO config response.")
+    return "responded_unverified"
+
+
+def enable_lan_control(ip: str, timeout: float = 3.0) -> str:
+    target = _target(ip)
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
+            device_id, stamp, token = _open_session(client, target, timeout)
+            info, info_response = _device_info(
+                client, target, device_id, stamp, token, 1, timeout
+            )
+            if info.get("model") != _SUPPORTED_MODEL:
+                raise MiIOError(
+                    "LAN Control setup is enabled only for detected model "
+                    "yeelink.light.color1."
+                )
+            response = _send_request(
+                client,
+                target,
+                device_id,
+                _next_timestamp(info_response.timestamp),
+                token,
+                "set_ps",
+                ["cfg_lan_ctrl", "1"],
+                _next_request_id(info_response.payload["id"]),
+                timeout,
+            )
+    except OSError as exc:
+        raise MiIOError("Could not send the LAN Control request to the device.") from exc
+
+    if response is None:
+        return "sent_unconfirmed"
+    if "error" in response.payload:
+        if not isinstance(response.payload["error"], dict):
+            raise MiIOError("Device returned a malformed miIO error response.")
+        return "rejected"
+    result = response.payload.get("result")
+    if result is None or result is False or result == []:
+        raise MiIOError("Device returned an unexpected LAN Control response.")
+    return "responded_unverified"
