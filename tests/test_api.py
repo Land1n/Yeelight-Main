@@ -73,26 +73,34 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(expected_content, response.text)
         app_script = self.client.get("/static/js/app.js")
-        self.assertIn("async function submitLanControl(event)", app_script.text)
+        self.assertIn("async function submitLanControl()", app_script.text)
 
-    def test_lan_control_form_intercepts_submit_and_restores_button(self) -> None:
+    def test_lan_control_button_does_not_submit_form_and_restores_state(self) -> None:
         html = self.client.get("/").text
-        script = self.client.get("/static/js/app.js").text
+        script = self.client.get("/static/js/app.js").text.replace("\r\n", "\n")
         self.assertIn('id="lan-control-form"', html)
         self.assertIn('id="lan-control-ip"', html)
         self.assertIn('id="lan-control-confirm"', html)
         self.assertIn('id="lan-control-submit"', html)
         self.assertIn('id="lan-control-result"', html)
         self.assertIn(
-            '$("#lan-control-form").addEventListener("submit", submitLanControl)',
+            'id="lan-control-submit" class="primary wifi-submit" type="button"',
+            html,
+        )
+        self.assertIn(
+            '$("#lan-control-submit").addEventListener("click", submitLanControl)',
             script,
         )
 
-        handler = script[script.index("async function submitLanControl(event)"):]
-        self.assertLess(
-            handler.index("event.preventDefault();"),
-            handler.index("if (lanControlSubmitting) return;"),
+        self.assertIn(
+            '$("#lan-control-form").addEventListener("submit", (event) => {\n'
+            '    event.preventDefault();\n'
+            "    submitLanControl();\n"
+            "  });",
+            script,
         )
+        handler = script[script.index("async function submitLanControl()"):]
+        self.assertIn("if (lanControlSubmitting) return;", handler)
         self.assertIn('apiRequest("/api/provisioning/lan-control"', handler)
         self.assertIn('result.textContent = "Выполняется…"', handler)
         self.assertIn("lanControlSubmitting = false;", handler)

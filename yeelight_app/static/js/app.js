@@ -181,7 +181,11 @@ function bindEvents() {
   $("#discover").addEventListener("click", () => runCommand("discover"));
   $("#reconnect").addEventListener("click", reconnectToServer);
   $("#wifi-form").addEventListener("submit", submitWifiSetup);
-  $("#lan-control-form").addEventListener("submit", submitLanControl);
+  $("#lan-control-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitLanControl();
+  });
+  $("#lan-control-submit").addEventListener("click", submitLanControl);
   tokenInput.addEventListener("change", () => initialize());
   $("#add-task").addEventListener("click", () => editor.addStep());
   $("#cancel-mode-edit").addEventListener("click", resetModeEditor);
@@ -245,8 +249,7 @@ async function submitWifiSetup(event) {
   }
 }
 
-async function submitLanControl(event) {
-  event.preventDefault();
+async function submitLanControl() {
   if (lanControlSubmitting) return;
 
   const submit = $("#lan-control-submit");
