@@ -75,6 +75,29 @@ class ApiTests(unittest.TestCase):
         app_script = self.client.get("/static/js/app.js")
         self.assertIn("async function submitLanControl(event)", app_script.text)
 
+    def test_lan_control_form_intercepts_submit_and_restores_button(self) -> None:
+        html = self.client.get("/").text
+        script = self.client.get("/static/js/app.js").text
+        self.assertIn('id="lan-control-form"', html)
+        self.assertIn('id="lan-control-ip"', html)
+        self.assertIn('id="lan-control-confirm"', html)
+        self.assertIn('id="lan-control-submit"', html)
+        self.assertIn('id="lan-control-result"', html)
+        self.assertIn(
+            '$("#lan-control-form").addEventListener("submit", submitLanControl)',
+            script,
+        )
+
+        handler = script[script.index("async function submitLanControl(event)"):]
+        self.assertLess(
+            handler.index("event.preventDefault();"),
+            handler.index("if (lanControlSubmitting) return;"),
+        )
+        self.assertIn('apiRequest("/api/provisioning/lan-control"', handler)
+        self.assertIn('result.textContent = "Выполняется…"', handler)
+        self.assertIn("lanControlSubmitting = false;", handler)
+        self.assertIn("submit.disabled = false;", handler)
+
     def test_health_check_is_public_and_does_not_expose_configuration(self) -> None:
         response = self.client.get("/api/health")
         self.assertEqual(response.status_code, 200)
@@ -203,7 +226,7 @@ class ApiTests(unittest.TestCase):
         )
         with patch(
             "yeelight_network.api.enable_lan_control",
-            side_effect=MiIOError("test device error"),
+            side_effect=MiIOError("The device did not answer the miIO handshake."),
         ):
             response = local_client.post(
                 "/api/provisioning/lan-control",
@@ -211,6 +234,10 @@ class ApiTests(unittest.TestCase):
                 headers=self.headers,
             )
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"],
+            "The device did not answer the miIO handshake.",
+        )
 
     def test_added_bulbs_are_persisted_via_api(self) -> None:
         storage_path = Path(self.temp_dir.name) / "bulbs.json"
