@@ -69,6 +69,7 @@ export function createApi(serverInput, tokenInput) {
     if (!response.ok) {
       const error = new Error(formatError(body.detail) || `Ошибка HTTP ${response.status}`);
       error.httpStatus = response.status;
+      error.payload = body.detail;
       throw error;
     }
     return body;

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="Инструкция Yeelight Console: установка, запуск сервера, подключение лампы, управление и частые ошибки.">
+  <title>Инструкция — Yeelight Console</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body data-page="help">
+  <div class="backdrop" aria-hidden="true">
+    <span class="backdrop-glow backdrop-glow-a"></span>
+    <span class="backdrop-glow backdrop-glow-b"></span>
+    <span class="backdrop-grid"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Yeelight Console — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"></path>
+            <path d="M10 21h4"></path>
+            <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"></path>
+          </svg>
+        </span>
+        <span class="brand-text">Yeelight <em>Console</em></span>
+      </a>
+
+      <nav class="topnav" aria-label="Страницы">
+        <a href="/">Главная</a>
+        <a href="/bulbs">Лампы</a>
+        <a href="/modes">Режимы</a>
+        <a href="/console">Консоль</a>
+        <a href="/setup">Настройка</a>
+        <a href="/help" aria-current="page">Инструкция</a>
+      </nav>
+
+      <div class="connection" role="status">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Справка</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="help" class="card card-help" aria-labelledby="help-title">
+      <div class="card-head">
+        <div class="card-heading">
+          <span class="icon-chip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5Z"></path>
+              <path d="M4 5.5v16"></path><path d="M8 7h8"></path><path d="M8 11h6"></path>
+            </svg>
+          </span>
+          <div>
+            <h2 id="help-title">Инструкция: от установки до управления</h2>
+            <p class="section-intro">Пять минут — и лампа слушается браузера. Все шаги выполняются на компьютере с сервером.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <strong>Сначала определите состояние лампы — от этого зависит весь порядок действий.</strong>
+        <table class="help-table">
+          <thead>
+            <tr><th>Что вы видите</th><th>Режим лампы</th><th>Что делать</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>В списке Wi-Fi есть сеть <code>yeelink-light-color1_miap…</code></td>
+              <td>Временная точка доступа (настройка)</td>
+              <td>Шаги 1–3, затем форма «Подключение лампы к Wi-Fi» на странице <a href="/setup">Настройка</a> (шаг 4а)</td>
+            </tr>
+            <tr>
+              <td>Такой сети нет, лампа горит и управлялась раньше</td>
+              <td>Уже в домашней Wi-Fi сети</td>
+              <td>Шаги 1–3, затем сразу «Найти лампы» на странице <a href="/bulbs">Лампы</a> (шаг 4б). Форму Wi-Fi <strong>не трогать</strong></td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Форма «Подключение лампы к Wi-Fi» работает <strong>только</strong> в первом случае: она отправляет настройки по адресу <code>192.168.13.1</code>, а он существует, пока лампа раздаёт свою сеть. Если лампа уже дома, отправка на <code>192.168.13.1</code> всегда даст «Лампа не ответила на miIO handshake» — это не поломка, а неверный адрес.</p>
+      </div>
+
+      <ol class="steps">
+        <li class="step">
+          <span class="step-number">1</span>
+          <div class="step-body">
+            <h3>Установите зависимости</h3>
+            <p>Один раз запустите <code>setup.bat</code> в папке проекта: он создаст окружение <code>.venv</code>, скопирует <code>.env</code> и установит пакеты.</p>
+            <pre class="code-block"><code>setup.bat
+
+:: вручную
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+Copy-Item .env.example .env</code></pre>
+            <p>В <code>.env</code> обязательно задайте <code>YEELIGHT_API_TOKEN</code> — это пароль для всех запросов к серверу.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">2</span>
+          <div class="step-body">
+            <h3>Запустите сервер</h3>
+            <p>Откройте <code>start-all.bat</code> — сервер поднимется и браузер сам откроет <code>http://127.0.0.1:8000</code>.</p>
+            <pre class="code-block"><code>start-all.bat
+
+:: только сервер
+.\.venv\Scripts\python.exe -m yeelight_network.server
+
+:: проверка, что сервер жив
+curl http://127.0.0.1:8000/api/health</code></pre>
+            <p>Сервер нужно держать запущенным всё время работы с лампой. Закроете окно — управление пропадёт.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">3</span>
+          <div class="step-body">
+            <h3>Введите API-токен</h3>
+            <p>Откройте <a href="/">главную страницу</a>, скопируйте значение <code>YEELIGHT_API_TOKEN</code> из <code>.env</code> в поле «API-токен» и нажмите «Переподключиться к серверу». Индикатор справа вверху станет зелёным и появится надпись «Сервер подключён».</p>
+            <p>Токен запоминается вкладкой, поэтому на страницах «Лампы», «Режимы» и «Консоль» его вводить повторно не нужно. Без токена эти страницы останутся пустыми — это ожидаемо, а не ошибка.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">4а</span>
+          <div class="step-body">
+            <h3>Лампа в режиме настройки: подключите её к Wi-Fi</h3>
+            <p>Подключите компьютер к сети <code>yeelink-light-color1_miap…</code> (пароль не нужен). Откройте страницу <a href="/setup">Настройка</a> и заполните форму:</p>
+            <ul>
+              <li><strong>IP лампы в режиме настройки</strong> — <code>192.168.13.1</code>;</li>
+              <li><strong>Название сети (SSID)</strong> — ваша сеть <strong>2,4 ГГц</strong> (5 ГГц лампа не видит);</li>
+              <li><strong>Пароль сети</strong> — от 8 до 63 символов, ровно как в настройках роутера;</li>
+              <li>отметьте «Понимаю, что лампа отключится…» и при необходимости флажок LAN Control.</li>
+            </ul>
+            <p>Нажмите «Отправить настройки Wi-Fi». Ответ «Лампа ответила на запрос…, но подключение ещё не подтверждено» — это <strong>нормальный</strong> ответ: miIO не умеет подтверждать присоединение к сети.</p>
+            <p>Дальше обязательно: переключите компьютер на свою сеть и выполните шаг 4б. Только обнаружение докажет, что лампа подключилась.</p>
+            <p class="notice">Если лампа не подключилась, сбросьте её: выключите питание на 5 секунд и включите снова, удерживайте кнопку на выключателе/корпусе 5 секунд до двойной вспышки — лампа вернётся в режим настройки.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">4б</span>
+          <div class="step-body">
+            <h3>Лампа в домашней сети: найдите её</h3>
+            <p>Компьютер и лампа должны быть в <strong>одной</strong> сети. Откройте страницу <a href="/bulbs">Лампы</a> и нажмите «Найти лампы» — адрес появится в списке со статусом «Есть ответ».</p>
+            <p>Если поиск не сработал (multicast закрыт на роутере), добавьте адрес вручную на странице <a href="/console">Консоль</a>:</p>
+            <pre class="code-block"><code>add 192.168.1.45
+status 192.168.1.45</code></pre>
+            <p>Узнать адрес лампы, когда он неизвестен, можно сканированием порта 55443 или в списке клиентов роутера.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">5</span>
+          <div class="step-body">
+            <h3>Управляйте светом</h3>
+            <p>На странице <a href="/bulbs">Лампы</a> нажмите «Управление». При открытии сервер сам читает текущее состояние и подписывает его под адресом: «Сейчас: включена · яркость 75% · RGB(255, 136, 0)».</p>
+            <ul>
+              <li><strong>Вкл / Выкл / Переключить / Статус</strong> — питание и опрос;</li>
+              <li><strong>Цвет</strong> — палитра и «Применить»;</li>
+              <li><strong>Яркость</strong> — 1–100 %;</li>
+              <li><strong>Температура цвета</strong> — 1700–6500 K;</li>
+              <li><strong>Циклический режим</strong> — выбор сохранённого режима и запуск.</li>
+            </ul>
+            <p>После каждой команды состояние перечитывается, поэтому ползунки и подпись показывают реальные значения лампы, а не то, что вы нажали.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">6</span>
+          <div class="step-body">
+            <h3>Запустите цветовой режим</h3>
+            <p>Быстрый путь — страница <a href="/modes">Режимы</a>: «Добавить режим» из готовых, затем на странице <a href="/bulbs">Лампы</a> выбрать его в карточке и нажать «Запустить режим». Кнопка станет «Остановить режим».</p>
+            <p>Свой режим — в «Конструкторе»: название, пауза между командами, «+ Добавить задачу» (питание, яркость, цвет, температура), перемещение и удаление шагов, «Сохранить режим». Сохранённые режимы можно «Изменить» — редактор заполнится, а «Отменить редактирование» вернёт пустую форму.</p>
+            <p>Запустить тот же режим можно и прямо в списке «Сохранённые режимы», выбрав целевой IP.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-number">7</span>
+          <div class="step-body">
+            <h3>Откройте с телефона</h3>
+            <p>Запустите <code>configure-phone.bat</code>, перезапустите сервер и откройте показанный LAN-адрес, например <code>http://192.168.1.10:8000</code>. Введите тот же токен.</p>
+            <p class="notice">Не открывайте порт сервера в публичный интернет: токен по HTTP не шифруется. Для удалённого доступа используйте VPN.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="divider"></div>
+      <h3 class="subheading">Все команды консоли</h3>
+      <table class="help-table">
+        <thead>
+          <tr><th>Команда</th><th>Действие</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>discover</code></td><td>Найти лампы в сети по SSDP и добавить найденные</td></tr>
+          <tr><td><code>list</code></td><td>Показать сохранённый список ламп</td></tr>
+          <tr><td><code>add 192.168.1.45</code></td><td>Добавить лампу по адресу</td></tr>
+          <tr><td><code>remove 192.168.1.45</code></td><td>Убрать лампу из списка</td></tr>
+          <tr><td><code>on &lt;IP&gt;</code> / <code>off &lt;IP&gt;</code></td><td>Включить / выключить</td></tr>
+          <tr><td><code>toggle &lt;IP&gt;</code></td><td>Переключить питание</td></tr>
+          <tr><td><code>status &lt;IP&gt;</code></td><td>Прочитать питание, яркость, цвет, температуру</td></tr>
+          <tr><td><code>brightness &lt;IP&gt; 60</code></td><td>Яркость 1–100 %</td></tr>
+          <tr><td><code>color &lt;IP&gt; #33aaff</code></td><td>Цвет шестьюнадцатеричным кодом</td></tr>
+          <tr><td><code>color &lt;IP&gt; 255 136 0</code></td><td>Цвет каналами RGB 0–255</td></tr>
+          <tr><td><code>temp &lt;IP&gt; 4000</code></td><td>Температура цвета 1700–6500 K</td></tr>
+        </tbody>
+      </table>
+      <p class="notice">Список ламп хранится в <code>data/bulbs.json</code>, режимы — в <code>data/modes.json</code>. Оба файла переживают перезапуск сервера.</p>
+
+      <div class="divider"></div>
+      <h3 class="subheading">Если что-то не работает</h3>
+      <div class="faq">
+        <details>
+          <summary>«Неверный API-токен»</summary>
+          <p>Сверьте значение с <code>YEELIGHT_API_TOKEN</code> в <code>.env</code> без кавычек и пробелов. После правки <code>.env</code> перезапустите сервер.</p>
+        </details>
+        <details>
+          <summary>Лампа не находится</summary>
+          <p>Проверьте, что лампа и компьютер в одной подсети и что включён LAN Control. Диагностика: <code>.\.venv\Scripts\python.exe tools\lan_control_probe.py &lt;IP&gt;</code>. Успех — <code>tcp_55443: open</code>, <code>ssdp_1982: found</code>, <code>get_prop: ok</code>.</p>
+        </details>
+        <details>
+          <summary>Сервер не запускается</summary>
+          <p>Порт занят или не задан токен при прослушивании LAN. Измените <code>YEELIGHT_PORT</code> в <code>.env</code> либо задайте <code>YEELIGHT_API_TOKEN</code>.</p>
+        </details>
+        <details>
+          <summary>«Лампа не ответила на miIO handshake»</summary>
+          <p>Значит по указанному IP нет лампы в режиме настройки. Чаще всего лампа уже подключена к домашней сети — адрес <code>192.168.13.1</code> перестаёт существовать, как только она ушла со своей точки доступа. Проверьте, есть ли в списке Wi-Fi сеть <code>yeelink-light-color1_miap…</code>: если её нет, форма не нужна — используйте «Найти лампы» или <code>add &lt;IP&gt;</code>.</p>
+          <p>Если сеть есть, убедитесь, что компьютер подключён именно к ней (не к роутеру и не к резервной точке доступа), и что в поле указан <code>192.168.13.1</code>. Затем попробуйте снова.</p>
+        </details>
+        <details>
+          <summary>«Лампа ответила на команду LAN Control, но включение ещё не подтверждено»</summary>
+          <p>Это штатный ответ, а не ошибка. Команда <code>set_ps cfg_lan_ctrl 1</code> возвращается прошивкой с пустым результатом <code>[]</code>, и протокол miIO не умеет подтверждать включение. Сделайте проверку сами: переключитесь на домашнюю сеть, найдите лампу и выполните <code>status &lt;IP&gt;</code>. Если лампа отвечает — LAN Control уже работает.</p>
+        </details>
+        <details>
+          <summary>«Не удалось получить результат попытки включения LAN Control»</summary>
+          <p>Вторичное сообщение: LAN Control не проверялся, потому что сам запрос не дошёл до лампы (см. пункт про miIO handshake). Сначала решите проблему с адресом, затем повторяйте отправку — обе строки обновятся.</p>
+        </details>
+        <details>
+          <summary>«Лампа не в списке» после перезапуска сервера</summary>
+          <p>Монитор удаляет лампу, если та не отвечает дольше <code>YEELIGHT_UNRESPONSIVE_TIMEOUT_SECONDS</code> (по умолчанию 60 сек). Причина — роутер отпустил устройство или компьютер сменил сеть. Нажмите «Найти лампы» или выполните <code>add &lt;IP&gt;</code>.</p>
+        </details>
+        <details>
+          <summary>Режим запущен, но цвета почти не меняются</summary>
+          <p>Это лимит прошивки: около 60 LAN-команд в минуту. Сервер специально замедляет команды до ~1 сек между ними, поэтому режим с паузой 0,7–0,8 сек идёт чуть медленнее, чем задано. Увеличьте паузу в режиме, если хотите предсказуемый темп.</p>
+        </details>
+        <details>
+          <summary>Команды выполняются, но лампа не реагирует</summary>
+          <p>Проверьте питание и яркость, затем выполните <code>status &lt;IP&gt;</code>. Если ответа нет, лампа потеряла сеть: переподключите её к Wi-Fi.</p>
+        </details>
+        <details>
+          <summary>В ответе «client quota exceeded»</summary>
+          <p>Прошивка Yeelight принимает примерно 60 LAN-команд в минуту. Сервер сам выдерживает безопасный интервал между командами одной лампы, поэтому режимы с короткой паузой замедляются автоматически. Если ошибка всё же появилась, подождите минуту: лампа снова начнёт отвечать без перезагрузки.</p>
+        </details>
+        <details>
+          <summary>Режим остановился сам</summary>
+          <p>После десяти подряд неудачных команд режим останавливается и показывает причину в списке режимов. Обычно это потеря сети: проверьте <code>status &lt;IP&gt;</code> и запустите режим снова.</p>
+        </details>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Yeelight Console · локальный сервер FastAPI</span>
+      <span class="footer-links">
+        <a href="/">На главную</a>
+        <a href="/bulbs">Лампы</a>
+      </span>
+    </footer>
+  </main>
+</body>
+</html>

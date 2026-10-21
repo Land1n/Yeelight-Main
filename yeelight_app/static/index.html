@@ -3,115 +3,183 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10151d">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="Yeelight Console — локальное управление лампами Yeelight из браузера: поиск в сети, яркость, цвет, температура и цветовые режимы.">
   <title>Yeelight Console</title>
-    <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body>
-  <main class="shell">
-    <header>
-      <div class="brand">
-        <div class="logo" aria-hidden="true">✦</div>
-        <div><h1>Yeelight Console</h1><p class="subtitle">Управление лампами в локальной сети</p></div>
+<body data-page="home">
+  <div class="backdrop" aria-hidden="true">
+    <span class="backdrop-glow backdrop-glow-a"></span>
+    <span class="backdrop-glow backdrop-glow-b"></span>
+    <span class="backdrop-grid"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Yeelight Console — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"></path>
+            <path d="M10 21h4"></path>
+            <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"></path>
+          </svg>
+        </span>
+        <span class="brand-text">Yeelight <em>Console</em></span>
+      </a>
+
+      <nav class="topnav" aria-label="Страницы">
+        <a href="/" aria-current="page">Главная</a>
+        <a href="/bulbs">Лампы</a>
+        <a href="/modes">Режимы</a>
+        <a href="/console">Консоль</a>
+        <a href="/setup">Настройка</a>
+        <a href="/help">Инструкция</a>
+      </nav>
+
+      <div class="connection" role="status">
+        <span id="status-dot" class="dot"></span>
+        <span id="status-text">Проверяем сервер…</span>
       </div>
-      <div class="connection" role="status"><span id="status-dot" class="dot"></span><span id="status-text">Проверяем сервер…</span></div>
-    </header>
-    <div class="grid">
-      <section class="card connection-card">
-        <h2>Подключение</h2>
-        <div class="settings">
-          <label class="field">Адрес сервера<input id="server-url" type="url" autocomplete="url"></label>
-          <label class="field">API-токен<input id="api-token" type="password" autocomplete="current-password"></label>
-        </div>
-        <div class="connection-actions">
-          <button id="reconnect" type="button">Переподключиться к серверу</button>
-          <p class="notice">Токен возьмите из `YEELIGHT_API_TOKEN` в `.env`. Он хранится только до закрытия вкладки.</p>
-        </div>
-      </section>
-      <section class="card wifi-card">
-        <div class="card-heading">
-          <div>
-            <h2>Подключение лампы к Wi-Fi</h2>
-            <p class="section-intro">Yeelight Color Bulb · `yeelink.light.color1`</p>
-          </div>
-          <span class="experimental-badge">Экспериментально</span>
-        </div>
-        <form id="wifi-form" class="wifi-form" autocomplete="off">
-          <div class="wifi-fields">
-            <label class="field">IP лампы в режиме настройки<input id="wifi-ip" type="text" inputmode="decimal" value="192.168.13.1" required></label>
-            <label class="field">Название сети (SSID)<input id="wifi-ssid" type="text" maxlength="32" value="POCO F4" required></label>
-            <label class="field">Пароль сети<input id="wifi-password" type="password" autocomplete="new-password" required></label>
-          </div>
-          <label class="wifi-confirm">
-            <input id="wifi-confirm" type="checkbox" required>
-            <span>Понимаю, что лампа отключится от временной точки доступа при переключении сети.</span>
-          </label>
-          <button id="wifi-submit" class="primary wifi-submit" type="submit">Отправить настройки Wi-Fi</button>
-        </form>
-        <p class="notice wifi-notice">Используйте сеть 2,4 ГГц. Пароль не сохраняется приложением. После отправки подключите компьютер к целевой сети и нажмите «Найти лампы»: только обнаружение подтвердит подключение.</p>
-        <p id="wifi-result" class="wifi-result" role="status" aria-live="polite"></p>
-      </section>
-      <section class="card wifi-card">
-        <div class="card-heading">
-          <div>
-            <h2>Включение LAN Control</h2>
-            <p class="section-intro">Отдельный шаг после подключения лампы к домашней сети</p>
-          </div>
-          <span class="experimental-badge">Требует проверки</span>
-        </div>
-        <p class="notice">Введите текущий IP лампы в домашней сети. Этот запрос не настраивает Wi-Fi. Сервер проверит модель и временно использует токен miIO из ответа устройства; токен не сохраняется. Разрешено только с этого компьютера.</p>
-        <form id="lan-control-form" class="wifi-form" autocomplete="off">
-          <label class="field">IP лампы в домашней сети<input id="lan-control-ip" type="text" inputmode="decimal" required placeholder="Например, 192.168.1.45"></label>
-          <label class="wifi-confirm">
-            <input id="lan-control-confirm" type="checkbox" required>
-            <span>Я отдельно подтверждаю включение LAN Control для этой лампы.</span>
-          </label>
-          <button id="lan-control-submit" class="primary wifi-submit" type="button">Отдельно включить LAN Control</button>
-        </form>
-        <p class="notice">Ответ лампы ещё не доказывает доступность LAN. После запроса выполните диагностику TCP 55443, SSDP и `get_prop` по инструкции в README.</p>
-        <p id="lan-control-result" class="wifi-result" role="status" aria-live="polite"></p>
-      </section>
-      <section class="card">
-        <div class="bulb-toolbar"><h2 style="margin:0">Мои лампы</h2><button id="discover" type="button">Найти лампы</button></div>
-        <div id="bulbs" class="bulb-list"><div class="empty">Загрузка списка…</div></div>
-        <p id="monitor-settings" class="notice"></p>
-      </section>
-      <section class="card">
-        <h2>Готовые режимы</h2>
-        <p class="notice">Добавьте цветовой цикл в сохранённые режимы, затем запустите его на выбранной лампе.</p>
-        <div id="mode-presets" class="preset-grid" aria-label="Готовые цветовые режимы"></div>
-      </section>
-      <section class="card">
-        <h2>Конструктор режимов</h2>
-        <form id="mode-form" class="mode-form">
-          <div class="mode-fields">
-            <label class="field">Название режима<input id="mode-name" maxlength="60" required placeholder="Например, вечер"></label>
-            <label class="field">Пауза между командами, сек<input id="mode-delay" type="number" min="0.1" max="3600" step="0.1" value="1" required></label>
-          </div>
-          <div id="task-list" class="task-list" aria-label="Задачи режима"></div>
-          <button id="add-task" type="button">+ Добавить задачу</button>
-          <div class="mode-form-actions">
-            <button id="save-mode" class="primary" type="submit">Сохранить режим</button>
-            <button id="cancel-mode-edit" type="button" hidden>Отменить редактирование</button>
-          </div>
-        </form>
-        <div id="modes" class="mode-list"><div class="empty">Загрузка режимов…</div></div>
-      </section>
-      <section class="card console">
-        <h2>Командная строка</h2>
-        <div id="output" class="console-output" aria-live="polite" aria-label="Вывод команд"></div>
-        <form id="command-form" class="command-row">
-          <input id="command" autocomplete="off" spellcheck="false" aria-label="Команда" placeholder="Например: discover или on 192.168.1.45">
-          <button class="primary" type="submit">Выполнить</button>
-        </form>
-        <div class="quick" aria-label="Быстрые команды">
-          <button type="button" data-command="discover">discover</button>
-          <button type="button" data-command="list">list</button>
-          <button type="button" data-command="add ">add IP</button>
-        </div>
-      </section>
     </div>
+  </header>
+
+  <main id="top" class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Локальная сеть · без облака</span>
+        <h1>Свет в вашей сети —<br><span class="gradient-text">под полным контролем</span></h1>
+        <p class="lead">
+          Yeelight Console находит лампы по LAN-протоколу, управляет питанием,
+          яркостью, цветом и температурой, а цветовые сценарии запускает по кругу.
+          Сервер работает на вашем компьютере, интерфейс открывается с любого
+          устройства в той же Wi-Fi сети.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/bulbs">Перейти к лампам</a>
+          <a class="btn btn-ghost" href="/help">Быстрый старт</a>
+        </div>
+        <dl class="hero-facts">
+          <div><dt>Протокол</dt><dd>LAN 55443</dd></div>
+          <div><dt>Поиск</dt><dd>SSDP</dd></div>
+          <div><dt>Настройка</dt><dd>miIO</dd></div>
+        </dl>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <span class="ring ring-1"></span>
+        <span class="ring ring-2"></span>
+        <span class="ring ring-3"></span>
+        <span class="orb"></span>
+        <span class="orb-core"></span>
+      </div>
+    </section>
+
+    <section id="connection-section" class="card card-connection" aria-labelledby="connection-title">
+      <div class="card-head">
+        <div class="card-heading">
+          <span class="icon-chip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4"></path><path d="M12 18v4"></path>
+              <path d="M4.9 4.9l2.8 2.8"></path><path d="M16.3 16.3l2.8 2.8"></path>
+              <path d="M2 12h4"></path><path d="M18 12h4"></path>
+              <path d="M4.9 19.1l2.8-2.8"></path><path d="M16.3 7.7l2.8-2.8"></path>
+            </svg>
+          </span>
+          <div>
+            <h2 id="connection-title">Подключение к серверу</h2>
+            <p class="section-intro">Адрес и токен хранятся только в этой вкладке браузера.</p>
+          </div>
+        </div>
+        <span class="pill pill-muted">Шаг 1</span>
+      </div>
+      <div class="settings">
+        <label class="field">
+          <span>Адрес сервера</span>
+          <input id="server-url" type="url" autocomplete="url" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>API-токен</span>
+          <input id="api-token" type="password" autocomplete="current-password" spellcheck="false">
+        </label>
+      </div>
+      <div class="connection-actions">
+        <button id="reconnect" type="button" class="btn btn-primary">Переподключиться к серверу</button>
+        <p class="notice">Токен возьмите из <code>YEELIGHT_API_TOKEN</code> в <code>.env</code>. Он хранится до закрытия вкладки и автоматически подставляется на страницах «Лампы», «Режимы», «Консоль» и «Настройка».</p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="summary-title">
+      <div class="card-head">
+        <div class="card-heading">
+          <span class="icon-chip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19V5"></path><path d="M4 19h16"></path>
+              <path d="M8 15l3-4 3 3 4-6"></path>
+            </svg>
+          </span>
+          <div>
+            <h2 id="summary-title">Сводка</h2>
+            <p class="section-intro">Обновляется каждые пять секунд, пока вкладка открыта.</p>
+          </div>
+        </div>
+      </div>
+      <dl class="summary">
+        <div><dt>Ламп в списке</dt><dd id="summary-bulbs">—</dd></div>
+        <div><dt>Режимов сохранено</dt><dd id="summary-modes">—</dd></div>
+        <div><dt>Сейчас выполняется</dt><dd id="summary-running">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="pages-title">
+      <div class="card-head">
+        <div class="card-heading">
+          <span class="icon-chip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="8" height="7" rx="1.5"></rect>
+              <rect x="13" y="4" width="8" height="7" rx="1.5"></rect>
+              <rect x="3" y="13" width="8" height="7" rx="1.5"></rect>
+              <rect x="13" y="13" width="8" height="7" rx="1.5"></rect>
+            </svg>
+          </span>
+          <div>
+            <h2 id="pages-title">Разделы</h2>
+            <p class="section-intro">Каждая задача на своей странице — больше не нужно прокручивать длинную ленту.</p>
+          </div>
+        </div>
+      </div>
+      <div class="nav-cards">
+        <a class="nav-card" href="/bulbs">
+          <strong>Лампы</strong>
+          <span>Поиск по сети, список, питание, цвет, яркость и температура.</span>
+        </a>
+        <a class="nav-card" href="/modes">
+          <strong>Режимы</strong>
+          <span>Готовые цветовые циклы, конструктор задач, запуск и остановка.</span>
+        </a>
+        <a class="nav-card" href="/console">
+          <strong>Консоль</strong>
+          <span>Команды <code>discover</code>, <code>add</code>, <code>color</code>, <code>temp</code> и вывод сервера.</span>
+        </a>
+        <a class="nav-card" href="/setup">
+          <strong>Настройка</strong>
+          <span>Первичное подключение лампы к Wi-Fi и включение LAN Control.</span>
+        </a>
+        <a class="nav-card" href="/help">
+          <strong>Инструкция</strong>
+          <span>Установка, запуск сервера, порядок действий и частые ошибки.</span>
+        </a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Yeelight Console · локальный сервер FastAPI</span>
+      <span class="footer-links">
+        <a href="/help">Инструкция</a>
+        <a href="/setup">Настройка лампы</a>
+      </span>
+    </footer>
   </main>
-    <script type="module" src="/static/js/app.js"></script>
+
+  <script type="module" src="/static/js/page-home.js"></script>
 </body>
 </html>

@@ -11,6 +11,13 @@ from yeelight_config import PROJECT_ROOT, load_project_env
 from yeelight_network_utils import get_lan_addresses
 
 
+def _project_path(value: str) -> Path:
+    """Разрешить относительный путь из .env относительно корня проекта."""
+
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
 def main() -> None:
     load_project_env()
     host = os.getenv("YEELIGHT_HOST", "127.0.0.1")
@@ -22,13 +29,10 @@ def main() -> None:
     addresses = filter(None, (part.strip() for part in os.getenv("YEELIGHT_BULBS", "").split(",")))
     poll_interval = float(os.getenv("YEELIGHT_POLL_INTERVAL_SECONDS", "10"))
     offline_timeout = float(os.getenv("YEELIGHT_UNRESPONSIVE_TIMEOUT_SECONDS", "60"))
-    modes_path = Path(
-        os.getenv(
-            "YEELIGHT_MODES_FILE",
-            str(PROJECT_ROOT / "data" / "modes.json"),
-        )
+    modes_path = _project_path(
+        os.getenv("YEELIGHT_MODES_FILE", str(PROJECT_ROOT / "data" / "modes.json"))
     )
-    bulbs_path = Path(
+    bulbs_path = _project_path(
         os.getenv("YEELIGHT_BULBS_FILE", str(PROJECT_ROOT / "data" / "bulbs.json"))
     )
     app = create_app(

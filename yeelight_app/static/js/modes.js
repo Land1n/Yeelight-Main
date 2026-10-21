@@ -38,6 +38,7 @@ export class ModeList {
         .find((item) => item.dataset.name === mode.name);
       if (!row) continue;
       row.querySelector(".mode-running-label").textContent = modeLabel(mode);
+      row.querySelector(".mode-commands").textContent = modeSummaryText(mode);
       row.querySelector(".mode-edit").disabled = mode.running;
       const button = row.querySelector(".mode-toggle");
       button.textContent = mode.running ? "Остановить" : "Запустить";
@@ -77,7 +78,7 @@ export class ModeList {
     title.textContent = modeLabel(mode);
     const summary = document.createElement("div");
     summary.className = "mode-commands";
-    summary.textContent = mode.last_error ? `Ошибка: ${mode.last_error}` : modeSummary(mode.steps);
+    summary.textContent = modeSummaryText(mode);
     info.append(title, summary);
 
     const buttons = document.createElement("div");
@@ -121,6 +122,12 @@ export class ModeList {
           method: "POST",
           body: mode.running ? undefined : JSON.stringify({ ip: target.value }),
         });
+        this.log(
+          mode.running
+            ? `Режим «${mode.name}» остановлен.`
+            : `Режим «${mode.name}» запущен на ${target.value}.`,
+          "command",
+        );
         await this.refresh();
       } catch (error) {
         this.log(`Ошибка режима: ${error.message}`, "error");
@@ -145,10 +152,12 @@ export class ModeList {
     button.type = "button";
     button.textContent = "Удалить";
     button.addEventListener("click", async () => {
+      if (!confirm(`Удалить режим «${mode.name}»? Действие нельзя отменить.`)) return;
       try {
         await this.request(`/api/modes/${encodeURIComponent(mode.name)}`, {
           method: "DELETE",
         });
+        this.log(`Режим «${mode.name}» удалён.`, "command");
         await this.refresh();
       } catch (error) {
         this.log(`Ошибка режима: ${error.message}`, "error");
@@ -156,6 +165,11 @@ export class ModeList {
     });
     return button;
   }
+}
+
+function modeSummaryText(mode) {
+  if (mode.last_error) return `Ошибка: ${mode.last_error}`;
+  return modeSummary(mode.steps);
 }
 
 function modeLabel(mode) {

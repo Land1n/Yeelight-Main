@@ -146,6 +146,76 @@ class ControllerTests(unittest.TestCase):
             with self.subTest(command=command), self.assertRaises(CommandError):
                 self.controller.execute(command)
 
+    def test_transport_failure_is_retried_for_idempotent_command(self) -> None:
+        class FlakyBulb(FakeBulb):
+            def __init__(self) -> None:
+                super().__init__()
+                self.calls = 0
+
+            def set_rgb(self, red: int, green: int, blue: int) -> None:
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError(
+                        "A socket error occurred when sending the command."
+                    )
+                super().set_rgb(red, green, blue)
+
+        bulb = FlakyBulb()
+        controller = YeelightController(
+            ["192.168.1.45"],
+            bulb_factory=lambda _address: bulb,
+            min_command_interval=0,
+        )
+        result = controller.execute("color 192.168.1.45 10 20 30")
+        self.assertEqual(result["rgb"], [10, 20, 30])
+        self.assertEqual(bulb.calls, 2)
+
+    def test_transport_failure_is_not_retried_for_toggle(self) -> None:
+        class FlakyBulb(FakeBulb):
+            def __init__(self) -> None:
+                super().__init__()
+                self.calls = 0
+
+            def get_properties(self) -> dict[str, str]:
+                self.calls += 1
+                raise RuntimeError("A socket error occurred when sending the command.")
+
+        bulb = FlakyBulb()
+        controller = YeelightController(
+            ["192.168.1.45"],
+            bulb_factory=lambda _address: bulb,
+            min_command_interval=0,
+        )
+        with self.assertRaisesRegex(RuntimeError, "socket error"):
+            controller.execute("toggle 192.168.1.45")
+        self.assertEqual(bulb.calls, 1)
+
+    def test_idle_socket_is_dropped_before_next_command(self) -> None:
+        class Socket:
+            def __init__(self) -> None:
+                self.closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        socket = Socket()
+        bulb = FakeBulb()
+        bulb.__dict__["_Bulb__socket"] = socket
+        controller = YeelightController(
+            ["192.168.1.45"],
+            bulb_factory=lambda _address: bulb,
+            min_command_interval=0,
+            socket_idle_timeout=30,
+        )
+        locked = controller.bulb_for("192.168.1.45")
+        locked._last_call = 0.0
+
+        controller.execute("on 192.168.1.45")
+
+        self.assertTrue(socket.closed)
+        self.assertIsNone(bulb.__dict__["_Bulb__socket"])
+        self.assertEqual(bulb.power, "on")
+
 
 if __name__ == "__main__":
     unittest.main()

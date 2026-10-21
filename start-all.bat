@@ -8,11 +8,16 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
+set "YEELIGHT_HOST=127.0.0.1"
 set "YEELIGHT_PORT=8000"
 if exist ".env" (
+    for /f "tokens=1,* delims==" %%A in ('findstr /b "YEELIGHT_HOST=" .env') do set "YEELIGHT_HOST=%%B"
     for /f "tokens=1,* delims==" %%A in ('findstr /b "YEELIGHT_PORT=" .env') do set "YEELIGHT_PORT=%%B"
 )
-set "YEELIGHT_PROBE_URL=http://127.0.0.1:%YEELIGHT_PORT%"
+if "%YEELIGHT_HOST%"=="0.0.0.0" set "YEELIGHT_HOST=127.0.0.1"
+if "%YEELIGHT_HOST%"=="::" set "YEELIGHT_HOST=[::1]"
+if "%YEELIGHT_HOST%"=="::1" set "YEELIGHT_HOST=[::1]"
+set "YEELIGHT_PROBE_URL=http://%YEELIGHT_HOST%:%YEELIGHT_PORT%"
 call :server_ready
 if not errorlevel 1 goto open_browser
 

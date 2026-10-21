@@ -38,13 +38,15 @@ class FakeSocket:
         self,
         info: dict,
         *,
-        response_timestamps: tuple[int, ...] = (17, 18),
+        response_timestamps: tuple[int, ...] = (17, 18, 19),
         response_payloads: dict[int, dict] | None = None,
         response_sources: dict[int, tuple[str, int]] | None = None,
         response_device_ids: dict[int, int] | None = None,
         timeouts: set[int] | None = None,
         corrupt_responses: set[int] | None = None,
         handshake_token: bytes = TOKEN,
+        handshake_timeout: bool = False,
+        malformed_handshake: bool = False,
     ):
         self.info = info
         self.response_timestamps = response_timestamps
@@ -54,6 +56,8 @@ class FakeSocket:
         self.timeouts = timeouts or set()
         self.corrupt_responses = corrupt_responses or set()
         self.handshake_token = handshake_token
+        self.handshake_timeout = handshake_timeout
+        self.malformed_handshake = malformed_handshake
         self.sent: list[bytes] = []
         self.received = 0
 
@@ -72,6 +76,8 @@ class FakeSocket:
     def recvfrom(self, _size):
         self.received += 1
         if self.received == 1:
+            if self.handshake_timeout:
+                raise socket.timeout
             handshake = (
                 b"!1"
                 + bytes.fromhex("0020")
@@ -80,6 +86,8 @@ class FakeSocket:
                 + bytes.fromhex("00000010")
                 + self.handshake_token
             )
+            if self.malformed_handshake:
+                handshake = handshake[:-1]
             return handshake, (TARGET, 54321)
         response_index = self.received - 2
         if response_index in self.timeouts:
@@ -115,6 +123,52 @@ def decrypt_request(packet: bytes) -> dict:
 
 
 class MiIOTests(unittest.TestCase):
+    def test_handshake_timeout_and_malformed_response_have_distinct_errors(self) -> None:
+        cases = (
+            ({"handshake_timeout": True}, "handshake_timeout"),
+            ({"malformed_handshake": True}, "handshake_invalid"),
+        )
+        for options, expected_code in cases:
+            with self.subTest(expected_code=expected_code):
+                fake = FakeSocket(
+                    {"model": "yeelink.light.color1"},
+                    **options,
+                )
+                with patch.object(miio.socket, "socket", return_value=fake):
+                    with self.assertRaises(miio.MiIOError) as raised:
+                        miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
+                self.assertEqual(raised.exception.code, expected_code)
+                self.assertEqual(len(fake.sent), 1)
+
+    def test_usable_token_is_read_from_the_handshake(self) -> None:
+        fake = FakeSocket({"model": "yeelink.light.color1"})
+        with patch.object(miio.socket, "socket", return_value=fake):
+            device_id, timestamp, token = miio._open_session(fake, TARGET, 1)
+
+        self.assertEqual(device_id, DEVICE_ID)
+        self.assertEqual(timestamp, 17)
+        self.assertEqual(token, TOKEN)
+
+    def test_empty_and_ff_handshake_tokens_are_rejected_before_configuration(self) -> None:
+        for token in (bytes(16), b"\xff" * 16):
+            with self.subTest(token=token.hex()):
+                fake = FakeSocket(
+                    {"model": "yeelink.light.color1"},
+                    handshake_token=token,
+                )
+                with patch.object(miio.socket, "socket", return_value=fake):
+                    with self.assertRaisesRegex(
+                        miio.MiIOError,
+                        "did not provide a usable miIO token",
+                    ):
+                        miio.configure_wifi(
+                            TARGET,
+                            "POCO F4",
+                            "test-pass-123",
+                            enable_lan_control=True,
+                        )
+                self.assertEqual(len(fake.sent), 1)
+
     def test_wifi_setup_is_sent_only_after_exact_model_check(self) -> None:
         fake = FakeSocket(
             {"model": "yeelink.light.color1", "fw_ver": "1.4.2_0061"},
@@ -123,7 +177,8 @@ class MiIOTests(unittest.TestCase):
         with patch.object(miio.socket, "socket", return_value=fake):
             status = miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
 
-        self.assertEqual(status, "responded_unverified")
+        self.assertEqual(status.wifi_status, "responded_unverified")
+        self.assertEqual(status.lan_control_status, "not_requested")
         self.assertEqual(len(fake.sent), 3)
         info_request = decrypt_request(fake.sent[1])
         self.assertEqual(info_request["method"], "miIO.info")
@@ -144,6 +199,20 @@ class MiIOTests(unittest.TestCase):
         with patch.object(miio.socket, "socket", return_value=fake):
             with self.assertRaisesRegex(miio.MiIOError, "only for detected model"):
                 miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
+
+        self.assertEqual(len(fake.sent), 2)
+        self.assertNotIn(b"test-pass-123", b"".join(fake.sent))
+
+    def test_wifi_setup_refuses_unsupported_model_before_any_configuration(self) -> None:
+        fake = FakeSocket({"model": "yeelink.light.other"})
+        with patch.object(miio.socket, "socket", return_value=fake):
+            with self.assertRaisesRegex(miio.MiIOError, "only for detected model"):
+                miio.configure_wifi(
+                    TARGET,
+                    "POCO F4",
+                    "test-pass-123",
+                    enable_lan_control=True,
+                )
 
         self.assertEqual(len(fake.sent), 2)
         self.assertNotIn(b"test-pass-123", b"".join(fake.sent))
@@ -186,6 +255,75 @@ class MiIOTests(unittest.TestCase):
             [0x11, 0x2B],
         )
 
+    def test_wifi_setup_sends_lan_control_before_router_with_exact_parameters(self) -> None:
+        fake = FakeSocket(
+            {"model": "yeelink.light.color1", "fw_ver": "1.4.2_0061"},
+            response_timestamps=(0x2A, 0x2B, 0x2C),
+        )
+        with patch.object(miio.socket, "socket", return_value=fake):
+            result = miio.configure_wifi(
+                TARGET,
+                "POCO F4",
+                "test-pass-123",
+                enable_lan_control=True,
+            )
+
+        self.assertEqual(result.wifi_status, "responded_unverified")
+        self.assertEqual(result.lan_control_status, "responded_unverified")
+        self.assertEqual(len(fake.sent), 4)
+        info_request, lan_request, wifi_request = (
+            decrypt_request(packet) for packet in fake.sent[1:]
+        )
+        self.assertEqual(info_request["method"], "miIO.info")
+        self.assertEqual(lan_request["method"], "set_ps")
+        self.assertEqual(lan_request["params"], ["cfg_lan_ctrl", "1"])
+        self.assertEqual(wifi_request["method"], "miIO.config_router")
+        self.assertEqual(
+            [info_request["id"], lan_request["id"], wifi_request["id"]],
+            [1, 2, 3],
+        )
+        self.assertEqual(
+            [struct.unpack(">HHIII", packet[:16])[4] for packet in fake.sent[1:]],
+            [0x11, 0x2B, 0x2C],
+        )
+
+    def test_lan_control_timeout_or_rejection_does_not_block_wifi_setup(self) -> None:
+        cases = (
+            ("timeout", {"timeouts": {1}}, "sent_unconfirmed"),
+            (
+                "rejected",
+                {"response_payloads": {1: {"id": 2, "error": {"code": -1}}}},
+                "rejected",
+            ),
+            (
+                "invalid response",
+                {"response_payloads": {1: {"id": 99, "result": [0]}}},
+                "failed",
+            ),
+        )
+        for name, options, expected_status in cases:
+            with self.subTest(name=name):
+                fake = FakeSocket(
+                    {"model": "yeelink.light.color1"},
+                    response_timestamps=(0x2A, 0x2B, 0x2C),
+                    **options,
+                )
+                with patch.object(miio.socket, "socket", return_value=fake):
+                    result = miio.configure_wifi(
+                        TARGET,
+                        "POCO F4",
+                        "test-pass-123",
+                        enable_lan_control=True,
+                    )
+
+                self.assertEqual(result.lan_control_status, expected_status)
+                self.assertEqual(result.wifi_status, "responded_unverified")
+                self.assertEqual(
+                    decrypt_request(fake.sent[-1])["method"],
+                    "miIO.config_router",
+                )
+                self.assertEqual(len(fake.sent), 4)
+
     def test_lan_control_refuses_unsupported_model(self) -> None:
         fake = FakeSocket({"model": "yeelink.light.other"})
         with patch.object(miio.socket, "socket", return_value=fake):
@@ -219,7 +357,7 @@ class MiIOTests(unittest.TestCase):
             response_payloads={1: {"id": 2, "result": []}},
         )
         with patch.object(miio.socket, "socket", return_value=fake):
-            with self.assertRaisesRegex(miio.MiIOError, "unexpected LAN Control"):
+            with self.assertRaisesRegex(miio.MiIOError, "did not confirm"):
                 miio.enable_lan_control(TARGET)
 
     def test_mismatched_response_id_is_rejected_before_configuring_wifi(self) -> None:
@@ -276,8 +414,16 @@ class MiIOTests(unittest.TestCase):
                     corrupt_responses=corrupt,
                 )
                 with patch.object(miio.socket, "socket", return_value=fake):
-                    with self.assertRaises(miio.MiIOError):
-                        miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
+                    result = miio.configure_wifi(
+                        TARGET,
+                        "POCO F4",
+                        "test-pass-123",
+                    )
+                self.assertEqual(result.wifi_status, "failed")
+                self.assertIn(
+                    result.wifi_error,
+                    {"protocol_error", "unexpected_device_response"},
+                )
 
     def test_device_error_response_is_reported_as_rejected(self) -> None:
         fake = FakeSocket(
@@ -287,7 +433,7 @@ class MiIOTests(unittest.TestCase):
         with patch.object(miio.socket, "socket", return_value=fake):
             status = miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
 
-        self.assertEqual(status, "rejected")
+        self.assertEqual(status.wifi_status, "rejected")
 
     def test_info_error_stops_before_sending_wifi_credentials(self) -> None:
         fake = FakeSocket(
@@ -306,8 +452,9 @@ class MiIOTests(unittest.TestCase):
             response_payloads={1: {"id": 2, "error": "invalid"}},
         )
         with patch.object(miio.socket, "socket", return_value=fake):
-            with self.assertRaisesRegex(miio.MiIOError, "malformed miIO error"):
-                miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
+            result = miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
+        self.assertEqual(result.wifi_status, "failed")
+        self.assertEqual(result.wifi_error, "malformed_device_response")
 
     def test_timeouts_are_distinguished_from_invalid_responses(self) -> None:
         no_info = FakeSocket({"model": "yeelink.light.color1"}, timeouts={0})
@@ -320,7 +467,7 @@ class MiIOTests(unittest.TestCase):
         )
         with patch.object(miio.socket, "socket", return_value=no_config_reply):
             status = miio.configure_wifi(TARGET, "POCO F4", "test-pass-123")
-        self.assertEqual(status, "sent_unconfirmed")
+        self.assertEqual(status.wifi_status, "sent_unconfirmed")
 
     def test_sequence_id_and_timestamp_wrap_at_protocol_limits(self) -> None:
         self.assertEqual(miio._next_request_id(9998), 1)

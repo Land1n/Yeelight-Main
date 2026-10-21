@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-import json
 import logging
 import math
-import re
 import secrets
 import shlex
 import time
@@ -27,9 +25,12 @@ from yeelight_network.miio import (
     enable_lan_control,
     is_valid_wifi_password,
 )
+from yeelight_network.modes import ModeStore
 
 
 logger = logging.getLogger(__name__)
+
+MAX_MODE_FAILURES = 10
 
 
 class CommandRequest(BaseModel):
@@ -50,11 +51,106 @@ class WifiSetupRequest(BaseModel):
     ip: str = Field(min_length=7, max_length=45)
     ssid: str = Field(min_length=1, max_length=32)
     password: SecretStr
+    enable_lan_control: bool = False
 
 
 class LanControlRequest(BaseModel):
     ip: str = Field(min_length=7, max_length=45)
     confirmed: bool = False
+
+
+def _miio_error_message(error: MiIOError) -> str:
+    messages = {
+        "handshake_timeout": "Лампа не ответила на miIO handshake.",
+        "handshake_invalid": "Лампа ответила, но handshake имеет некорректный формат.",
+        "token_unavailable": (
+            "Лампа ответила на miIO handshake, но не предоставила пригодный токен. "
+            "Это не означает, что лампа недоступна по сети. Попробуйте включить "
+            "LAN Control на этапе первоначальной настройки или используйте "
+            "поддерживаемый способ получения токена."
+        ),
+        "info_timeout": "Лампа ответила на handshake, но не ответила на miIO.info.",
+        "response_unconfirmed": (
+            "Лампа ответила на команду, но не подтвердила включение LAN Control."
+        ),
+        "unsupported_model": (
+            "Модель не поддерживается. Настройка доступна только для "
+            "yeelink.light.color1."
+        ),
+        "info_rejected": "Лампа отклонила запрос miIO.info.",
+        "invalid_device_info": "Лампа ответила, но данные miIO.info некорректны.",
+        "transport_error": "Не удалось обменяться пакетами miIO с лампой.",
+    }
+    return messages.get(
+        error.code,
+        "Лампа ответила некорректно или не ответила на запрос miIO.",
+    )
+
+
+def _wifi_status_message(status: str, error: str | None = None) -> str:
+    messages = {
+        "sent_unconfirmed": (
+            "Запрос настройки Wi-Fi отправлен, но лампа не подтвердила его. "
+            "Подключите компьютер к целевой сети и проверьте лампу."
+        ),
+        "responded_unverified": (
+            "Лампа ответила на запрос настройки Wi-Fi, но подключение к сети "
+            "ещё не подтверждено."
+        ),
+        "rejected": "Лампа отклонила запрос настройки Wi-Fi.",
+    }
+    if status == "failed":
+        if error == "transport_error":
+            return (
+                "Не удалось отправить запрос настройки Wi-Fi или получить ответ "
+                "от лампы."
+            )
+        return (
+            "Ответ на запрос настройки Wi-Fi некорректен или не относится к "
+            "этому запросу. Результат подключения неизвестен."
+        )
+    return messages.get(
+        status,
+        "Неизвестный результат настройки Wi-Fi; проверьте лампу.",
+    )
+
+
+def _lan_control_status_message(status: str, error: str | None = None) -> str:
+    if status == "not_requested":
+        return "Попытка включения LAN Control не запрашивалась."
+    if status == "rejected":
+        return "Лампа отклонила команду включения LAN Control."
+    if status == "sent_unconfirmed":
+        return (
+            "Команда LAN Control отправлена до настройки Wi-Fi, но ответ не "
+            "получен. Включение не подтверждено."
+        )
+    if status == "responded_unverified":
+        return (
+            "Лампа ответила на команду LAN Control, но включение ещё не "
+            "подтверждено. Проверьте TCP 55443, SSDP и get_prop после подключения."
+        )
+    if error == "transport_error":
+        return (
+            "Не удалось отправить или проверить команду LAN Control; настройка "
+            "Wi-Fi будет продолжена."
+        )
+    return (
+        "Ответ команды LAN Control некорректен или не подтверждает включение; "
+        "настройка Wi-Fi будет продолжена."
+    )
+
+
+def _require_loopback(request: Request, detail: str) -> None:
+    """Разрешить чувствительный маршрут только с этого компьютера."""
+
+    peer = request.client.host if request.client else ""
+    try:
+        if ipaddress.ip_address(peer).is_loopback:
+            return
+    except ValueError:
+        pass
+    raise HTTPException(status_code=403, detail=detail)
 
 
 def create_app(
@@ -74,77 +170,10 @@ def create_app(
     last_seen: dict[str, float] = {}
     failed_since: dict[str, float] = {}
     bulb_status: dict[str, bool | None] = {}
-    mode_file = Path(modes_path) if modes_path is not None else None
-    modes: dict[str, dict[str, Any]] = {}
+    store = ModeStore(modes_path)
+    modes = store.modes
     mode_tasks: dict[str, asyncio.Task[None]] = {}
 
-    if mode_file is not None and mode_file.is_file():
-        try:
-            loaded = json.loads(mode_file.read_text(encoding="utf-8"))
-            if not isinstance(loaded, dict):
-                raise ValueError("Modes file must contain a JSON object")
-            for name, mode in loaded.items():
-                if (
-                    not isinstance(name, str)
-                    or not isinstance(mode, dict)
-                    or (
-                        not isinstance(mode.get("steps"), list)
-                        and not isinstance(mode.get("commands"), list)
-                    )
-                ):
-                    raise ValueError("Modes file contains an invalid mode")
-                steps = mode.get("steps")
-                if steps is None:
-                    steps = []
-                    for command in mode["commands"]:
-                        parts = shlex.split(command)
-                        if len(parts) < 2:
-                            raise ValueError("Legacy mode contains an invalid command")
-                        action = parts[0]
-                        args = parts[2:]
-                        if action == "color" and len(args) == 1 and re.fullmatch(r"#?[0-9a-fA-F]{6}", args[0]):
-                            rgb = int(args[0].lstrip("#"), 16)
-                            args = [(rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255]
-                        elif action == "color" and len(args) == 3:
-                            args = [int(value) for value in args]
-                        elif args:
-                            args = [int(args[0]) if args[0].isdigit() else args[0]]
-                        steps.append({"action": action, "values": args})
-                for step in steps:
-                    if (
-                        not isinstance(step, dict)
-                        or step.get("action") not in {
-                            "on", "off", "toggle", "status",
-                            "brightness", "color", "temp",
-                        }
-                        or not isinstance(step.get("values"), list)
-                    ):
-                        raise ValueError(f"Mode {name!r} contains an invalid task")
-                modes[name] = {
-                    "name": name,
-                    "steps": steps,
-                    "delay_seconds": float(mode.get("delay_seconds", 1.0)),
-                    "last_error": None,
-                    "running_ip": None,
-                }
-        except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:
-            raise RuntimeError(f"Could not load modes from {mode_file}: {exc}") from exc
-
-    def save_modes() -> None:
-        if mode_file is None:
-            return
-        mode_file.parent.mkdir(parents=True, exist_ok=True)
-        content = {
-            name: {
-                "steps": mode["steps"],
-                "delay_seconds": mode["delay_seconds"],
-            }
-            for name, mode in modes.items()
-        }
-        mode_file.write_text(
-            json.dumps(content, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -211,12 +240,35 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    def serve_page(filename: str) -> FileResponse:
+        page = static_dir / filename
+        if not page.is_file():
+            raise HTTPException(status_code=500, detail="Web client files are missing")
+        return FileResponse(page, media_type="text/html")
+
     @app.get("/", include_in_schema=False)
     async def web_client() -> FileResponse:
-        index = static_dir / "index.html"
-        if not index.is_file():
-            raise HTTPException(status_code=500, detail="Web client files are missing")
-        return FileResponse(index, media_type="text/html")
+        return serve_page("index.html")
+
+    @app.get("/bulbs", include_in_schema=False)
+    async def bulbs_page() -> FileResponse:
+        return serve_page("bulbs.html")
+
+    @app.get("/modes", include_in_schema=False)
+    async def modes_page() -> FileResponse:
+        return serve_page("modes.html")
+
+    @app.get("/console", include_in_schema=False)
+    async def console_page() -> FileResponse:
+        return serve_page("console.html")
+
+    @app.get("/setup", include_in_schema=False)
+    async def setup_page() -> FileResponse:
+        return serve_page("setup.html")
+
+    @app.get("/help", include_in_schema=False)
+    async def help_page() -> FileResponse:
+        return serve_page("help.html")
 
     @app.get("/api/bulbs", dependencies=[Depends(authorize)])
     async def bulbs() -> dict[str, Any]:
@@ -240,18 +292,7 @@ def create_app(
 
     @app.post("/api/provisioning/wifi", dependencies=[Depends(authorize)])
     async def provision_wifi(request: Request, setup: WifiSetupRequest) -> dict[str, str]:
-        peer = request.client.host if request.client else ""
-        try:
-            if not ipaddress.ip_address(peer).is_loopback:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Wi-Fi setup is only allowed from this computer.",
-                )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=403,
-                detail="Wi-Fi setup is only allowed from this computer.",
-            ) from exc
+        _require_loopback(request, "Wi-Fi setup is only allowed from this computer.")
 
         if len(setup.ssid.encode("utf-8")) > 32 or "\x00" in setup.ssid:
             raise HTTPException(status_code=422, detail="Invalid Wi-Fi network name.")
@@ -264,48 +305,54 @@ def create_app(
                 detail="Wi-Fi password must be 8–63 bytes or a 64-digit hexadecimal key.",
             )
         try:
-            outcome = await run_in_threadpool(
+            result = await run_in_threadpool(
                 configure_wifi,
                 setup.ip,
                 setup.ssid,
                 password,
+                enable_lan_control=setup.enable_lan_control,
             )
         except MiIOError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            message = _miio_error_message(exc)
+            lan_control_status = (
+                "not_attempted" if setup.enable_lan_control else "not_requested"
+            )
+            lan_control_message = (
+                f"Попытка LAN Control не выполнена: {message}"
+                if setup.enable_lan_control
+                else _lan_control_status_message(lan_control_status)
+            )
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": message,
+                    "wifi_status": "not_sent",
+                    "lan_control_status": lan_control_status,
+                    "lan_control_message": lan_control_message,
+                },
+            ) from exc
         finally:
             password = ""
             setup.password = SecretStr("")
 
-        messages = {
-            "sent_unconfirmed": (
-                "The request was sent, but the bulb did not confirm it. "
-                "Reconnect this computer to the target Wi-Fi and discover the bulb."
+        return {
+            "status": result.wifi_status,
+            "message": _wifi_status_message(
+                result.wifi_status,
+                result.wifi_error,
             ),
-            "responded_unverified": (
-                "The bulb responded to the request, but the change is unverified. "
-                "Reconnect this computer to the "
-                "target Wi-Fi and discover the bulb to verify the result."
+            "lan_control_status": result.lan_control_status,
+            "lan_control_message": _lan_control_status_message(
+                result.lan_control_status,
+                result.lan_control_error,
             ),
-            "rejected": "The bulb rejected the Wi-Fi setup request.",
         }
-        return {"status": outcome, "message": messages[outcome]}
 
     @app.post("/api/provisioning/lan-control", dependencies=[Depends(authorize)])
     async def provision_lan_control(
         request: Request, setup: LanControlRequest
     ) -> dict[str, str]:
-        peer = request.client.host if request.client else ""
-        try:
-            if not ipaddress.ip_address(peer).is_loopback:
-                raise HTTPException(
-                    status_code=403,
-                    detail="LAN Control setup is only allowed from this computer.",
-                )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=403,
-                detail="LAN Control setup is only allowed from this computer.",
-            ) from exc
+        _require_loopback(request, "LAN Control setup is only allowed from this computer.")
 
         if not setup.confirmed:
             raise HTTPException(
@@ -316,19 +363,20 @@ def create_app(
         try:
             outcome = await run_in_threadpool(enable_lan_control, setup.ip)
         except MiIOError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400,
+                detail=_miio_error_message(exc),
+            ) from exc
 
         messages = {
             "sent_unconfirmed": (
-                "The request was sent without a device response. "
-                "Run the LAN Control diagnostics before using the bulb."
+                "Команда отправлена, но ответа лампы нет. Включение не подтверждено."
             ),
             "responded_unverified": (
-                "The bulb acknowledged the request. This does not yet confirm "
-                "LAN Control; run the diagnostics to check port 55443, SSDP, "
-                "and get_prop."
+                "Лампа ответила на команду, но это ещё не подтверждает LAN Control. "
+                "Проверьте TCP 55443, SSDP и get_prop."
             ),
-            "rejected": "The bulb rejected the LAN Control request.",
+            "rejected": "Лампа отклонила команду включения LAN Control.",
         }
         return {"status": outcome, "message": messages[outcome]}
 
@@ -385,39 +433,15 @@ def create_app(
             raise HTTPException(status_code=422, detail="Mode name cannot be blank")
         if "/" in name or "\\" in name:
             raise HTTPException(status_code=422, detail="Mode name cannot contain path separators")
-        steps = []
-        for step in request.steps:
-            action = step.get("action")
-            values = step.get("values", [])
-            if not isinstance(values, list):
-                raise HTTPException(status_code=422, detail="Task values must be a list")
-            if action not in {"on", "off", "toggle", "status", "brightness", "color", "temp"}:
-                raise HTTPException(status_code=422, detail=f"Unsupported task: {action}")
-            expected = 0 if action in {"on", "off", "toggle", "status"} else 3 if action == "color" else 1
-            if len(values) != expected:
-                raise HTTPException(status_code=422, detail=f"Invalid values for task: {action}")
-            if action == "brightness":
-                values = [YeelightController._integer(str(values[0]), "brightness", 1, 100)]
-            elif action == "temp":
-                values = [YeelightController._integer(str(values[0]), "temperature", 1700, 6500)]
-            elif action == "color":
-                values = [
-                    YeelightController._integer(str(value), channel, 0, 255)
-                    for value, channel in zip(values, ("red", "green", "blue"))
-                ]
-            steps.append({"action": action, "values": values})
-
         if name in mode_tasks and not mode_tasks[name].done():
             raise HTTPException(status_code=409, detail="Stop the mode before editing it")
-        modes[name] = {
-            "name": name,
-            "steps": steps,
-            "delay_seconds": request.delay_seconds,
-            "last_error": None,
-            "running_ip": None,
-        }
-        save_modes()
-        return {"ok": True, "mode": modes[name]}
+        try:
+            mode = store.put(name, request.steps, request.delay_seconds)
+        except (CommandError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="Could not save modes") from exc
+        return {"ok": True, "mode": mode}
 
     @app.delete("/api/modes/{name}", dependencies=[Depends(authorize)])
     async def delete_mode(name: str) -> dict[str, bool]:
@@ -427,8 +451,10 @@ def create_app(
         if task is not None and not task.done():
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
-        del modes[name]
-        save_modes()
+        try:
+            store.delete(name)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="Could not save modes") from exc
         return {"ok": True}
 
     @app.post("/api/modes/{name}/start", dependencies=[Depends(authorize)])
@@ -452,13 +478,28 @@ def create_app(
         mode["running_ip"] = address
 
         async def repeat_commands() -> None:
+            failures = 0
             try:
+                bulb = service.bulb_for(address)
                 while True:
                     for step in mode["steps"]:
                         action = step["action"]
                         args = [address, *(str(value) for value in step["values"])]
                         line = " ".join([action, *args])
-                        await run_in_threadpool(service.execute, line)
+                        try:
+                            await run_in_threadpool(service.execute, line, bulb)
+                        except DeviceError as exc:
+                            failures += 1
+                            mode["last_error"] = str(exc)
+                            if failures >= MAX_MODE_FAILURES:
+                                return
+                            await asyncio.sleep(max(mode["delay_seconds"], 1.0))
+                            continue
+                        except Exception as exc:
+                            mode["last_error"] = str(exc)
+                            return
+                        failures = 0
+                        mode["last_error"] = None
                         await asyncio.sleep(mode["delay_seconds"])
             except asyncio.CancelledError:
                 raise

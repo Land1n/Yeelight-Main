@@ -87,12 +87,12 @@ class ProvisioningProbeTests(unittest.TestCase):
         decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
         padded_request = decryptor.update(request_packet[32:]) + decryptor.finalize()
         unpadder = padding.PKCS7(128).unpadder()
-        request = json.loads(
-            (unpadder.update(padded_request) + unpadder.finalize())
-            .rstrip(b"\x00")
-            .decode()
-        )
+        request_bytes = unpadder.update(padded_request) + unpadder.finalize()
+        request = json.loads(request_bytes.rstrip(b"\x00").decode())
+        self.assertEqual(request["id"], 1)
         self.assertEqual(request["method"], "miIO.info")
+        self.assertTrue(request_bytes.endswith(b"\x00"))
+        self.assertFalse(request_bytes.endswith(b"\r\n"))
         self.assertNotIn("passwd", request.get("params", {}))
 
     def test_miio_probe_reports_token_availability_without_revealing_it(self) -> None:
