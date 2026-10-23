@@ -8,6 +8,15 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+*.log
+/logs/
+
+# Локальные данные сервера и менеджера.
+/data/server.db
+/data/server.db-*
+/data/manager/
+/.manager/
 /data/modes.json
 /data/bulbs.json
-*.log

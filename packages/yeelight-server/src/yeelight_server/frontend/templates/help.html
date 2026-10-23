@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Три независимых пакета</span>
+    <h1>Инструкция</h1>
+    <p class="lead">Как устроен проект, как запустить сервер и менеджер, как проверить безопасность и где искать ошибки.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/setup">Подключить менеджер</a>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="arch-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="arch-title">Архитектура</h2>
+        <p class="section-intro">Единственная реализация операций с лампами — в <code>yeelight-logic</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Пакет</th><th>Где работает</th><th>Ответственность</th></tr></thead>
+      <tbody>
+        <tr><td><code>yeelight-logic</code></td><td>везде</td><td>LAN-команды, discovery, controller, miIO provisioning, типизированный dispatcher.</td></tr>
+        <tr><td><code>yeelight-manager</code></td><td>рядом с лампами</td><td>WebSocket-клиент к серверу, локальный API и Flet-интерфейс, Wi-Fi/LAN Control.</td></tr>
+        <tr><td><code>yeelight-server</code></td><td>там, где нужен веб-доступ</td><td>Пользователи, сессии, SQLite, менеджеры, команды, режимы, веб-интерфейс.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="alert-info">
+    <p>Браузер не общается с лампами. Сервер не общается с лампами. Только менеджер выполняет операции в своей локальной сети и возвращает результат по исходящему WebSocket.</p>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="quickstart-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="quickstart-title">Быстрый старт</h2>
+        <p class="section-intro">Windows-скрипты и ручные команды.</p>
+      </div>
+    </div>
+  </div>
+  <ol class="steps">
+    <li>Запустите <code>tools\setup.bat</code>: создаётся <code>.venv</code>, устанавливаются три пакета, генерируется <code>.env</code> с паролем администратора.</li>
+    <li>Запустите <code>start-server.bat</code> и откройте <code>http://127.0.0.1:8000</code>.</li>
+    <li>Войдите под пользователем из <code>YEELIGHT_SERVER_ADMIN_USER</code> и паролем из <code>.env</code>.</li>
+    <li>На странице «Менеджеры» создайте одноразовый код.</li>
+    <li>На машине с лампами выполните <code>start-manager.bat --pair КОД</code>, затем <code>start-manager.bat</code>.</li>
+    <li>Нажмите «Найти лампы» и добавьте нужные адреса.</li>
+  </ol>
+  <pre class="code-block">py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e packages\yeelight-logic
+.\.venv\Scripts\python.exe -m pip install -e packages\yeelight-manager
+.\.venv\Scripts\python.exe -m pip install -e packages\yeelight-server
+.\.venv\Scripts\python.exe -m yeelight_server</pre>
+</section>
+
+<section class="card" aria-labelledby="pairing-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="pairing-title">Спаривание</h2>
+        <p class="section-intro">Токен менеджера выдаётся один раз и хранится локально в защищённом виде.</p>
+      </div>
+    </div>
+  </div>
+  <div class="steps">
+    <div><strong>1.</strong> Пользователь создаёт код на странице «Менеджеры».</div>
+    <div><strong>2.</strong> Менеджер отправляет код, имя и версию на <code>POST /api/v1/managers/pair</code>.</div>
+    <div><strong>3.</strong> Сервер проверяет срок и одноразовость, создаёт токен <code>ylm_…</code> и сохраняет только хеш.</div>
+    <div><strong>4.</strong> Менеджер сохраняет токен: DPAPI на Windows, файл <code>0600</code> на Unix.</div>
+    <div><strong>5.</strong> Менеджер подключается к <code>/api/v1/managers/ws</code> с заголовком <code>Authorization: Bearer</code>.</div>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="wifi-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="wifi-title">Wi-Fi и LAN Control</h2>
+        <p class="section-intro">Только локально, только после подтверждения.</p>
+      </div>
+    </div>
+  </div>
+  <div class="alert-info">
+    <p>Менеджер проверяет, что запрос пришёл с loopback, и требует <code>confirm: true</code>. Пароль Wi-Fi не записывается в файлы и не логируется. Поддерживается модель <code>yeelink.light.color1</code>; для остальных используйте официальное приложение.</p>
+    <p>Ответ miIO означает «запрос доставлен», но не доказывает подключение к сети или включение LAN Control. Проверяйте лампу отдельно через discovery и статус.</p>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="api-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="api-title">HTTP API</h2>
+        <p class="section-intro">Все изменяющие запросы требуют cookie сессии и <code>X-CSRF-Token</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Метод</th><th>Путь</th><th>Назначение</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td><code>/api/v1/auth/login</code></td><td>Вход, установка cookie</td></tr>
+        <tr><td>GET</td><td><code>/api/v1/auth/me</code></td><td>Пользователь и CSRF-токен</td></tr>
+        <tr><td>POST</td><td><code>/api/v1/managers/pairing-codes</code></td><td>Одноразовый код</td></tr>
+        <tr><td>POST</td><td><code>/api/v1/managers/pair</code></td><td>Спаривание менеджера</td></tr>
+        <tr><td>GET</td><td><code>/api/v1/lamps</code></td><td>Лампы всех менеджеров</td></tr>
+        <tr><td>POST</td><td><code>/api/v1/commands</code></td><td>Типизированное действие</td></tr>
+        <tr><td>GET</td><td><code>/api/v1/commands</code></td><td>История команд</td></tr>
+        <tr><td>GET/POST/DELETE</td><td><code>/api/v1/modes</code></td><td>Режимы и запуск</td></tr>
+        <tr><td>GET</td><td><code>/api/v1/diagnostics</code></td><td>Безопасная диагностика</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <pre class="code-block">curl -c cookies.txt -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"..."}' \
+  http://127.0.0.1:8000/api/v1/auth/login
+
+# csrf_token из ответа
+curl -b cookies.txt -H "X-CSRF-Token: ..." -H "Content-Type: application/json" \
+  -d '{"manager_id":"mgr_...","action":"power","ip":"192.168.1.45","params":{"state":"on"}}' \
+  http://127.0.0.1:8000/api/v1/commands</pre>
+</section>
+
+<section class="card" aria-labelledby="tests-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="tests-title">Проверки</h2>
+        <p class="section-intro">Обычные тесты не требуют ламп и сети.</p>
+      </div>
+    </div>
+  </div>
+  <pre class="code-block">.\.venv\Scripts\python.exe -m unittest discover -s tests -v</pre>
+  <p class="field-hint">Аппаратные тесты включаются только переменными окружения, см. <code>tests/README.md</code>. Они не запускаются по умолчанию.</p>
+</section>
+
+<section class="card faq" aria-labelledby="faq-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="faq-title">Частые проблемы</h2>
+        <p class="section-intro">Что проверить в первую очередь.</p>
+      </div>
+    </div>
+  </div>
+  <details class="disclosure">
+    <summary>Менеджер не подключается</summary>
+    <div class="disclosure-body"><p>Проверьте адрес сервера, срок действия токена и что исходящий WebSocket не блокируется. В логах сервера есть событие <code>manager_connected</code> без секретов.</p></div>
+  </details>
+  <details class="disclosure">
+    <summary>Команда вернула manager_unavailable</summary>
+    <div class="disclosure-body"><p>Менеджер не был подключён в момент доставки. Сервер не выдаёт такую команду за выполненную. Запустите менеджер и повторите действие.</p></div>
+  </details>
+  <details class="disclosure">
+    <summary>Лампа не находится</summary>
+    <div class="disclosure-body"><p>Компьютер с менеджером должен быть в той же сети, что и лампа. Проверьте LAN Control, multicast/SSDP и TCP 55443. При необходимости добавьте IP вручную.</p></div>
+  </details>
+  <details class="disclosure">
+    <summary>Режим остановился с ошибкой</summary>
+    <div class="disclosure-body"><p>После десяти ошибок подряд цикл завершается и сохраняет <code>last_error</code>. Проверьте питание лампы, IP и лимит LAN-команд (примерно 60 в минуту).</p></div>
+  </details>
+</section>
+{% endblock %}

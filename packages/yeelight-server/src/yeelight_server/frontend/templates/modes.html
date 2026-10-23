@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Циклы задач · типизированные действия</span>
+    <h1>Режимы</h1>
+    <p class="lead">Режим — это список задач и пауза между ними. Сервер выполняет цикл, отправляя менеджеру только разрешённые действия; после десяти ошибок подряд цикл останавливается.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/bulbs">К лампам</a>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="target-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="target-title">Куда запускать</h2>
+        <p class="section-intro">Выберите менеджер и известную ему лампу.</p>
+      </div>
+    </div>
+    <span id="manager-state" class="pill pill-muted">—</span>
+  </div>
+  <div class="inline-form">
+    <label class="field">
+      <span>Менеджер</span>
+      <select id="manager-select"></select>
+    </label>
+    <label class="field">
+      <span>Лампа</span>
+      <select id="lamp-select"></select>
+    </label>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="presets-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="presets-title">Пресеты</h2>
+        <p class="section-intro">Нажмите, чтобы добавить готовые задачи в редактор.</p>
+      </div>
+    </div>
+  </div>
+  <div id="mode-presets" class="preset-row"></div>
+</section>
+
+<section class="card" aria-labelledby="editor-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="editor-title">Редактор режима</h2>
+        <p class="section-intro">Одинаковое имя заменяет сохранённый режим. Запущенный режим нельзя редактировать или удалять.</p>
+      </div>
+    </div>
+    <span class="pill pill-muted">задачи</span>
+  </div>
+  <form id="mode-form" class="mode-form">
+    <input id="mode-id" type="hidden" value="">
+    <div class="mode-fields">
+      <label class="field">
+        <span>Название</span>
+        <input id="mode-name" type="text" maxlength="60" required autocomplete="off" placeholder="Вечер">
+      </label>
+      <label class="field">
+        <span>Пауза, секунды</span>
+        <input id="mode-delay" type="number" min="0.1" max="3600" step="0.1" value="1" required>
+      </label>
+    </div>
+    <div id="task-list" class="task-list"></div>
+    <div class="mode-form-actions">
+      <button id="add-task" type="button" class="btn btn-ghost">Добавить задачу</button>
+      <button id="save-mode" type="submit" class="btn btn-primary">Сохранить режим</button>
+      <button id="reset-mode" type="button" class="btn btn-ghost">Очистить</button>
+    </div>
+    <p class="field-hint">Задача <code>on/off/toggle/status</code> не имеет значений. <code>brightness</code> — 1–100, <code>temp</code> — 1700–6500 K, <code>color</code> — три канала 0–255.</p>
+  </form>
+</section>
+
+<section class="card" aria-labelledby="modes-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="modes-title">Сохранённые режимы</h2>
+        <p class="section-intro">Запуск и остановка доступны для выбранной выше лампы.</p>
+      </div>
+    </div>
+    <span class="pill pill-muted" id="modes-count"></span>
+  </div>
+  <div id="modes" class="mode-list"><div class="empty">Загрузка…</div></div>
+</section>
+
+<section class="card" aria-labelledby="modes-log-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="modes-log-title">Журнал</h2>
+        <p class="section-intro">Сохранение, запуск и ошибки выполнения.</p>
+      </div>
+    </div>
+  </div>
+  <div id="output" class="console-output console-output-compact" aria-live="polite" aria-label="Журнал режимов"></div>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/modes.js"></script>{% endblock %}

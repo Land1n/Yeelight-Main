@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yeelight-logic"
+version = "0.2.0"
+description = "Independent Yeelight LAN control library: bulbs, controller, commands, discovery and provisioning."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "yeelight>=0.7,<1",
+    "cryptography>=42,<47",
+]
+
+[project.optional-dependencies]
+test = []
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = [
+    "yeelight_logic",
+    "yeelight_logic.commands",
+    "yeelight_logic.provisioning",
+]

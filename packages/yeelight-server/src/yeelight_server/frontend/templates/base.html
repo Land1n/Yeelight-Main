@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="Yeelight Console — сервер-ретранслятор для ламп Yeelight: менеджеры в локальной сети, типизированные команды и веб-интерфейс.">
+  <title>{{ title }} — Yeelight Console</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body data-page="{{ page }}">
+  <div class="backdrop" aria-hidden="true">
+    <span class="backdrop-glow backdrop-glow-a"></span>
+    <span class="backdrop-glow backdrop-glow-b"></span>
+    <span class="backdrop-grid"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Yeelight Console — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"></path>
+            <path d="M10 21h4"></path>
+            <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"></path>
+          </svg>
+        </span>
+        <span class="brand-text">Yeelight <em>Console</em></span>
+      </a>
+
+      <nav class="topnav" aria-label="Страницы">
+        <a href="/" {% if page == "home" %}aria-current="page"{% endif %}>Главная</a>
+        <a href="/bulbs" {% if page == "bulbs" %}aria-current="page"{% endif %}>Лампы</a>
+        <a href="/modes" {% if page == "modes" %}aria-current="page"{% endif %}>Режимы</a>
+        <a href="/console" {% if page == "console" %}aria-current="page"{% endif %}>Консоль</a>
+        <a href="/setup" {% if page == "setup" %}aria-current="page"{% endif %}>Менеджеры</a>
+        <a href="/help" {% if page == "help" %}aria-current="page"{% endif %}>Инструкция</a>
+      </nav>
+
+      <div class="topbar-tools">
+        <div class="connection" role="status">
+          <span id="status-dot" class="dot"></span>
+          <span id="status-text">Проверяем сервер…</span>
+        </div>
+        <span class="user-chip" title="Вы вошли как {{ username }}">{{ username }}</span>
+        <button id="logout" type="button" class="btn btn-ghost btn-small">Выйти</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" class="shell">
+    {% block content %}{% endblock %}
+
+    <footer class="footer">
+      <span>Yeelight Console · сервер-ретранслятор · {{ username }}</span>
+      <span class="footer-links">
+        <a href="/help">Инструкция</a>
+        <a href="/setup">Подключение менеджера</a>
+      </span>
+    </footer>
+  </main>
+
+  <script type="module" src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Сервер отдельно · лампы в локальной сети</span>
+    <h1>Один интерфейс —<br><span class="gradient-text">менеджеры у каждой сети</span></h1>
+    <p class="lead">
+      Сервер хранит лампы, режимы и историю команд, но никогда не обращается к лампам
+      напрямую. Менеджер подключается к нему по исходящему WebSocket и выполняет
+      только типизированные действия в своей локальной сети.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/bulbs">Открыть лампы</a>
+      <a class="btn btn-ghost" href="/setup">Подключить менеджер</a>
+    </div>
+    <dl class="hero-facts">
+      <div><dt>Сервер</dt><dd>HTTP + SQLite</dd></div>
+      <div><dt>Доставка</dt><dd>WebSocket</dd></div>
+      <div><dt>Команды</dt><dd>только типы</dd></div>
+    </dl>
+  </div>
+  <div class="hero-visual" aria-hidden="true">
+    <span class="ring ring-1"></span>
+    <span class="ring ring-2"></span>
+    <span class="ring ring-3"></span>
+    <span class="orb"></span>
+    <span class="orb-core"></span>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="summary-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <span class="icon-chip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="M8 15l3-4 3 3 4-6"></path>
+        </svg>
+      </span>
+      <div>
+        <h2 id="summary-title">Сводка</h2>
+        <p class="section-intro">Обновляется каждые пять секунд, пока вкладка открыта.</p>
+      </div>
+    </div>
+    <button id="refresh" type="button" class="btn btn-ghost btn-small">Обновить</button>
+  </div>
+  <dl class="summary">
+    <div><dt>Менеджеров онлайн</dt><dd id="summary-managers">—</dd></div>
+    <div><dt>Ламп известно</dt><dd id="summary-lamps">—</dd></div>
+    <div><dt>Режимов сохранено</dt><dd id="summary-modes">—</dd></div>
+    <div><dt>Режимов выполняется</dt><dd id="summary-running">—</dd></div>
+  </dl>
+</section>
+
+<section class="card" aria-labelledby="managers-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <span class="icon-chip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+          <path d="M8 20h8"></path><path d="M12 16v4"></path>
+        </svg>
+      </span>
+      <div>
+        <h2 id="managers-title">Менеджеры</h2>
+        <p class="section-intro">Состояние подключений и количество известных ламп.</p>
+      </div>
+    </div>
+    <a class="btn btn-ghost btn-small" href="/setup">Добавить</a>
+  </div>
+  <div id="manager-list" class="manager-list"><div class="empty">Загрузка…</div></div>
+</section>
+
+<section class="card" aria-labelledby="commands-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <span class="icon-chip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6h16"></path><path d="M4 12h12"></path><path d="M4 18h8"></path>
+        </svg>
+      </span>
+      <div>
+        <h2 id="commands-title">Последние команды</h2>
+        <p class="section-intro">Статусы <code>delivered</code>, <code>completed</code>, <code>failed</code> и <code>timed_out</code> не смешиваются.</p>
+      </div>
+    </div>
+    <a class="btn btn-ghost btn-small" href="/console">В консоль</a>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Время</th><th>Менеджер</th><th>Действие</th><th>Лампа</th><th>Статус</th></tr></thead>
+      <tbody id="recent-commands"><tr><td colspan="5" class="empty">Загрузка…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="pages-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <span class="icon-chip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="8" height="7" rx="1.5"></rect>
+          <rect x="13" y="4" width="8" height="7" rx="1.5"></rect>
+          <rect x="3" y="13" width="8" height="7" rx="1.5"></rect>
+          <rect x="13" y="13" width="8" height="7" rx="1.5"></rect>
+        </svg>
+      </span>
+      <div>
+        <h2 id="pages-title">Разделы</h2>
+        <p class="section-intro">Каждая задача на своей странице.</p>
+      </div>
+    </div>
+  </div>
+  <div class="nav-cards">
+    <a class="nav-card" href="/bulbs"><strong>Лампы</strong><span>Поиск через менеджер, питание, яркость, цвет и температура.</span></a>
+    <a class="nav-card" href="/modes"><strong>Режимы</strong><span>Циклы задач, пресеты, запуск на выбранной лампе.</span></a>
+    <a class="nav-card" href="/console"><strong>Консоль</strong><span>Типизированные действия и история выполнения.</span></a>
+    <a class="nav-card" href="/setup"><strong>Менеджеры</strong><span>Одноразовый код, установка и локальная настройка ламп.</span></a>
+    <a class="nav-card" href="/help"><strong>Инструкция</strong><span>Архитектура, запуск, безопасность и проверка.</span></a>
+  </div>
+</section>
+
+<div id="output" class="console-output console-output-compact" aria-live="polite" aria-label="Журнал"></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/home.js"></script>{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Одноразовый код · исходящий WebSocket</span>
+    <h1>Менеджеры и настройка</h1>
+    <p class="lead">Сервер не хранит пароль Wi-Fi и не имеет маршрутов для настройки ламп. Wi-Fi и LAN Control выполняет только локальный менеджер после явного подтверждения.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/help">Инструкция</a>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="pair-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="pair-title">Подключить менеджер</h2>
+        <p class="section-intro">Создайте код здесь, затем введите его в локальном менеджере. Код действует 10 минут и используется один раз.</p>
+      </div>
+    </div>
+    <span class="pill pill-muted">шаг 1</span>
+  </div>
+  <form id="pair-form" class="inline-form">
+    <label class="field">
+      <span>Имя менеджера (подсказка)</span>
+      <input id="pair-name" type="text" maxlength="60" placeholder="Дом" autocomplete="off">
+    </label>
+    <button id="pair-create" type="submit" class="btn btn-primary">Создать код</button>
+  </form>
+  <div id="pair-result" class="pair-result" hidden>
+    <div class="pair-code-row">
+      <span class="quick-label">Код:</span>
+      <code id="pair-code" class="pair-code"></code>
+      <span id="pair-expires" class="field-hint"></span>
+    </div>
+    <p class="field-hint">В локальном менеджере:</p>
+    <pre id="pair-command" class="code-block"></pre>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="install-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="install-title">Установка менеджера</h2>
+        <p class="section-intro">Менеджер запускается на компьютере или мини-ПК в той же сети, что и лампы.</p>
+      </div>
+    </div>
+    <span class="pill pill-muted">шаг 2</span>
+  </div>
+  <ol class="steps">
+    <li>Скопируйте репозиторий на машину с доступом к лампам.</li>
+    <li>Выполните <code>tools\setup.bat</code> или установите пакеты вручную.</li>
+    <li>Подключите менеджер: <code>start-manager.bat --pair КОД</code> либо введите код в окне менеджера.</li>
+    <li>Запустите <code>start-manager.bat</code>; он подключится к серверу по WebSocket.</li>
+    <li>Вернитесь на страницу «Лампы» и нажмите «Найти лампы».</li>
+  </ol>
+</section>
+
+<section class="card" aria-labelledby="managers-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="managers-title">Подключённые менеджеры</h2>
+        <p class="section-intro">Удаление менеджера разрывает сокет и удаляет его лампы и историю команд.</p>
+      </div>
+    </div>
+    <button id="refresh-managers" type="button" class="btn btn-ghost btn-small">Обновить</button>
+  </div>
+  <div id="manager-list" class="manager-list"><div class="empty">Загрузка…</div></div>
+</section>
+
+<section class="card" aria-labelledby="provisioning-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="provisioning-title">Wi-Fi и LAN Control — только локально</h2>
+        <p class="section-intro">Эти операции намеренно отсутствуют в API сервера.</p>
+      </div>
+    </div>
+    <span class="pill pill-warn">локально</span>
+  </div>
+  <div class="alert-info">
+    <p>
+      Настройка Wi-Fi и включение LAN Control выполняются в окне менеджера или через его
+      локальный API на <code>127.0.0.1</code>. Пароль Wi-Fi передаётся только в памяти,
+      не сохраняется и не попадает в ответы. Требуется отдельная галочка подтверждения.
+    </p>
+    <p>
+      Сервер не маршрутизирует эти действия и не принимает пароль Wi-Fi. Если менеджер
+      находится на другой машине, его локальный API остаётся недоступен из сети.
+    </p>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="diagnostics-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="diagnostics-title">Диагностика</h2>
+        <p class="section-intro">Без секретов: версия, состояние менеджеров, таймауты и последние события аудита.</p>
+      </div>
+    </div>
+    <button id="refresh-diagnostics" type="button" class="btn btn-ghost btn-small">Обновить</button>
+  </div>
+  <pre id="diagnostics" class="code-block">Загрузка…</pre>
+  <h3 class="subheading">Аудит</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Результат</th></tr></thead>
+      <tbody id="audit-list"><tr><td colspan="4" class="empty">Загрузка…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="security-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="security-title">Безопасность</h2>
+        <p class="section-intro">Коротко о модели доступа.</p>
+      </div>
+    </div>
+  </div>
+  <ul class="check-list">
+    <li>Пароль человека хранится как scrypt-хеш; сессия — непрозрачная cookie <code>HttpOnly</code>, изменения защищены CSRF-заголовком.</li>
+    <li>Токен менеджера хранится на сервере только как SHA-256 хеш и передаётся один раз при спаривании.</li>
+    <li>Менеджер хранит токен через DPAPI (Windows) или файл с правами <code>0600</code> (Linux/macOS).</li>
+    <li>Для доступа из LAN используйте HTTPS через reverse proxy; cookie помечается <code>Secure</code> при TLS.</li>
+  </ul>
+</section>
+
+<div id="output" class="console-output console-output-compact" aria-live="polite" aria-label="Журнал"></div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/setup.js"></script>{% endblock %}

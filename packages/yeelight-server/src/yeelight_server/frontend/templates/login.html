@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="Вход в Yeelight Console.">
+  <title>Вход — Yeelight Console</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body data-page="login">
+  <div class="backdrop" aria-hidden="true">
+    <span class="backdrop-glow backdrop-glow-a"></span>
+    <span class="backdrop-glow backdrop-glow-b"></span>
+    <span class="backdrop-grid"></span>
+  </div>
+
+  <main class="login-shell">
+    <section class="card login-card" aria-labelledby="login-title">
+      <a class="brand login-brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"></path>
+            <path d="M10 21h4"></path>
+            <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"></path>
+          </svg>
+        </span>
+        <span class="brand-text">Yeelight <em>Console</em></span>
+      </a>
+      <h1 id="login-title" class="login-title">Вход</h1>
+      <p class="lead">Сервер-ретранслятор для менеджеров Yeelight. Пароль администратора задаётся при первом запуске.</p>
+      <form id="login-form" class="login-form" data-next="{{ next }}">
+        <label class="field">
+          <span>Пользователь</span>
+          <input id="login-username" type="text" autocomplete="username" required autofocus>
+        </label>
+        <label class="field">
+          <span>Пароль</span>
+          <input id="login-password" type="password" autocomplete="current-password" required>
+        </label>
+        <button id="login-submit" type="submit" class="btn btn-primary">Войти</button>
+        <p id="login-error" class="form-error" role="alert" hidden></p>
+      </form>
+      <p class="notice">Нет доступа? Проверьте <code>YEELIGHT_SERVER_ADMIN_USER</code> и <code>YEELIGHT_SERVER_ADMIN_PASSWORD</code> в <code>.env</code> при первом запуске. Сменить пароль можно командой <code>yeelight-server --set-password</code>.</p>
+    </section>
+  </main>
+
+  <script type="module" src="/static/js/login.js"></script>
+</body>
+</html>

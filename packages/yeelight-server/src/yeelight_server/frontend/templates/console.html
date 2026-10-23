@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Типизированный API · без произвольных строк</span>
+    <h1>Консоль</h1>
+    <p class="lead">Сервер принимает только закрытый набор действий. Быстрая строка ниже разбирается в браузере и тоже отправляет типизированный JSON.</p>
+  </div>
+  <div class="page-actions">
+    <button id="refresh-history" type="button" class="btn btn-ghost">Обновить историю</button>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="command-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="command-title">Действие</h2>
+        <p class="section-intro">Для действий с лампой она должна быть известна выбранному менеджеру.</p>
+      </div>
+    </div>
+    <span id="manager-state" class="pill pill-muted">—</span>
+  </div>
+  <form id="command-form" class="command-form">
+    <div class="wifi-fields">
+      <label class="field">
+        <span>Менеджер</span>
+        <select id="manager-select"></select>
+      </label>
+      <label class="field">
+        <span>Действие</span>
+        <select id="action-select">
+          <option value="status">status</option>
+          <option value="power">power</option>
+          <option value="brightness">brightness</option>
+          <option value="color">color</option>
+          <option value="color_temperature">color_temperature</option>
+          <option value="discover">discover</option>
+          <option value="list">list</option>
+          <option value="add">add</option>
+          <option value="remove">remove</option>
+        </select>
+      </label>
+      <label class="field" id="ip-field">
+        <span>IP лампы</span>
+        <input id="param-ip" type="text" inputmode="decimal" placeholder="192.168.1.45" autocomplete="off">
+      </label>
+    </div>
+    <div id="params-power" class="inline-form compact" hidden>
+      <label class="field">
+        <span>Состояние</span>
+        <select id="param-state">
+          <option value="on">on</option>
+          <option value="off">off</option>
+          <option value="toggle">toggle</option>
+        </select>
+      </label>
+    </div>
+    <div id="params-value" class="inline-form compact" hidden>
+      <label class="field">
+        <span>Значение</span>
+        <input id="param-value" type="number" min="1" max="6500" step="1" value="50">
+      </label>
+      <p id="value-hint" class="field-hint"></p>
+    </div>
+    <div id="params-rgb" class="inline-form compact" hidden>
+      <label class="field"><span>R</span><input id="param-red" type="number" min="0" max="255" value="51"></label>
+      <label class="field"><span>G</span><input id="param-green" type="number" min="0" max="255" value="170"></label>
+      <label class="field"><span>B</span><input id="param-blue" type="number" min="0" max="255" value="255"></label>
+      <label class="field"><span>Или цвет</span><input id="param-hex" type="color" value="#33aaff"></label>
+    </div>
+    <div class="mode-form-actions">
+      <button id="send-command" type="submit" class="btn btn-primary">Отправить</button>
+    </div>
+  </form>
+  <div class="quick">
+    <span class="quick-label">Быстрая строка:</span>
+    <input id="quick-command" type="text" placeholder="brightness 192.168.1.45 60" autocomplete="off">
+    <button id="quick-run" type="button" class="btn btn-ghost">Разобрать и отправить</button>
+  </div>
+  <p class="field-hint">Поддерживаются <code>discover</code>, <code>list</code>, <code>add IP</code>, <code>remove IP</code>, <code>on|off|toggle|status IP</code>, <code>brightness IP N</code>, <code>color IP #RRGGBB</code> и <code>temp IP N</code>. Строка не покидает браузер.</p>
+</section>
+
+<section class="card" aria-labelledby="history-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="history-title">История команд</h2>
+        <p class="section-intro">Последние 50 команд пользователя.</p>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Время</th><th>Действие</th><th>Лампа</th><th>Статус</th><th>Результат</th></tr></thead>
+      <tbody id="command-history"><tr><td colspan="5" class="empty">Загрузка…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="console-log-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="console-log-title">Вывод</h2>
+        <p class="section-intro">Полный ответ сервера и менеджера.</p>
+      </div>
+    </div>
+  </div>
+  <div id="output" class="console-output" aria-live="polite" aria-label="Вывод консоли"></div>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/console.js"></script>{% endblock %}

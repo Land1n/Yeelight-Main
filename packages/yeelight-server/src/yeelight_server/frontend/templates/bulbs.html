@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <span class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> Менеджер → LAN 55443</span>
+    <h1>Мои лампы</h1>
+    <p class="lead">Сервер передаёт типизированные действия менеджеру. Менеджер находит лампы в своей сети, хранит их список и возвращает состояние.</p>
+  </div>
+  <div class="page-actions">
+    <button id="discover" type="button" class="btn btn-primary">Найти лампы</button>
+    <a class="btn btn-ghost" href="/modes">К режимам</a>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="target-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="target-title">Менеджер</h2>
+        <p class="section-intro">Команды выполняет только выбранный менеджер. Если он офлайн, сервер честно вернёт <code>manager_unavailable</code>.</p>
+      </div>
+    </div>
+    <span id="manager-state" class="pill pill-muted">—</span>
+  </div>
+  <div class="inline-form">
+    <label class="field">
+      <span>Подключение</span>
+      <select id="manager-select"></select>
+    </label>
+    <form id="add-lamp-form" class="inline-form compact">
+      <label class="field">
+        <span>Добавить лампу по IP</span>
+        <input id="add-lamp-ip" type="text" inputmode="decimal" placeholder="192.168.1.45" autocomplete="off">
+      </label>
+      <button id="add-lamp" type="submit" class="btn btn-ghost">Добавить</button>
+    </form>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="bulbs-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="bulbs-title">Список ламп</h2>
+        <p class="section-intro">Состояние обновляется после каждой команды и при периодическом мониторинге менеджера.</p>
+      </div>
+    </div>
+    <span class="pill pill-muted" id="bulbs-count"></span>
+  </div>
+  <div id="bulbs" class="bulb-list"><div class="empty">Загрузка списка…</div></div>
+</section>
+
+<section class="card" aria-labelledby="bulbs-log-title">
+  <div class="card-head">
+    <div class="card-heading">
+      <div>
+        <h2 id="bulbs-log-title">Журнал</h2>
+        <p class="section-intro">Команды этой страницы и ответы менеджера.</p>
+      </div>
+    </div>
+  </div>
+  <div id="output" class="console-output console-output-compact" aria-live="polite" aria-label="Журнал команд"></div>
+</section>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/bulbs.js"></script>{% endblock %}
