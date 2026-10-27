@@ -2,100 +2,76 @@
   "Радуга": {
     "steps": [
       {
-        "action": "color",
-        "values": [
-          255,
-          0,
-          0
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 0,
+        "b": 0
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          127,
-          0
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 127,
+        "b": 0
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          255,
-          0
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 255,
+        "b": 0
       },
       {
-        "action": "color",
-        "values": [
-          127,
-          255,
-          0
-        ]
+        "type": "set_rgb",
+        "r": 127,
+        "g": 255,
+        "b": 0
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          255,
-          0
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 255,
+        "b": 0
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          255,
-          127
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 255,
+        "b": 127
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          255,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 255,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          127,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 127,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          0,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 0,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          127,
-          0,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 127,
+        "g": 0,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          0,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 0,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          0,
-          127
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 0,
+        "b": 127
       }
     ],
     "delay_seconds": 0.1
@@ -103,84 +79,64 @@
   "Фиолетовое переливание": {
     "steps": [
       {
-        "action": "color",
-        "values": [
-          75,
-          0,
-          130
-        ]
+        "type": "set_rgb",
+        "r": 75,
+        "g": 0,
+        "b": 130
       },
       {
-        "action": "color",
-        "values": [
-          95,
-          0,
-          175
-        ]
+        "type": "set_rgb",
+        "r": 95,
+        "g": 0,
+        "b": 175
       },
       {
-        "action": "color",
-        "values": [
-          128,
-          0,
-          210
-        ]
+        "type": "set_rgb",
+        "r": 128,
+        "g": 0,
+        "b": 210
       },
       {
-        "action": "color",
-        "values": [
-          160,
-          32,
-          240
-        ]
+        "type": "set_rgb",
+        "r": 160,
+        "g": 32,
+        "b": 240
       },
       {
-        "action": "color",
-        "values": [
-          186,
-          85,
-          211
-        ]
+        "type": "set_rgb",
+        "r": 186,
+        "g": 85,
+        "b": 211
       },
       {
-        "action": "color",
-        "values": [
-          218,
-          112,
-          214
-        ]
+        "type": "set_rgb",
+        "r": 218,
+        "g": 112,
+        "b": 214
       },
       {
-        "action": "color",
-        "values": [
-          186,
-          85,
-          211
-        ]
+        "type": "set_rgb",
+        "r": 186,
+        "g": 85,
+        "b": 211
       },
       {
-        "action": "color",
-        "values": [
-          160,
-          32,
-          240
-        ]
+        "type": "set_rgb",
+        "r": 160,
+        "g": 32,
+        "b": 240
       },
       {
-        "action": "color",
-        "values": [
-          128,
-          0,
-          210
-        ]
+        "type": "set_rgb",
+        "r": 128,
+        "g": 0,
+        "b": 210
       },
       {
-        "action": "color",
-        "values": [
-          95,
-          0,
-          175
-        ]
+        "type": "set_rgb",
+        "r": 95,
+        "g": 0,
+        "b": 175
       }
     ],
     "delay_seconds": 0.8
@@ -188,84 +144,64 @@
   "Северное сияние": {
     "steps": [
       {
-        "action": "color",
-        "values": [
-          0,
-          128,
-          128
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 128,
+        "b": 128
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          200,
-          200
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 200,
+        "b": 200
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          255,
-          165
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 255,
+        "b": 165
       },
       {
-        "action": "color",
-        "values": [
-          128,
-          0,
-          255
-        ]
+        "type": "set_rgb",
+        "r": 128,
+        "g": 0,
+        "b": 255
       },
       {
-        "action": "color",
-        "values": [
-          186,
-          85,
-          211
-        ]
+        "type": "set_rgb",
+        "r": 186,
+        "g": 85,
+        "b": 211
       },
       {
-        "action": "color",
-        "values": [
-          238,
-          130,
-          238
-        ]
+        "type": "set_rgb",
+        "r": 238,
+        "g": 130,
+        "b": 238
       },
       {
-        "action": "color",
-        "values": [
-          138,
-          43,
-          226
-        ]
+        "type": "set_rgb",
+        "r": 138,
+        "g": 43,
+        "b": 226
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          200,
-          150
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 200,
+        "b": 150
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          180,
-          130
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 180,
+        "b": 130
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          128,
-          128
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 128,
+        "b": 128
       }
     ],
     "delay_seconds": 1.2
@@ -273,84 +209,64 @@
   "Закат": {
     "steps": [
       {
-        "action": "color",
-        "values": [
-          120,
-          0,
-          30
-        ]
+        "type": "set_rgb",
+        "r": 120,
+        "g": 0,
+        "b": 30
       },
       {
-        "action": "color",
-        "values": [
-          190,
-          20,
-          25
-        ]
+        "type": "set_rgb",
+        "r": 190,
+        "g": 20,
+        "b": 25
       },
       {
-        "action": "color",
-        "values": [
-          240,
-          55,
-          20
-        ]
+        "type": "set_rgb",
+        "r": 240,
+        "g": 55,
+        "b": 20
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          105,
-          25
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 105,
+        "b": 25
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          165,
-          45
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 165,
+        "b": 45
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          205,
-          95
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 205,
+        "b": 95
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          165,
-          45
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 165,
+        "b": 45
       },
       {
-        "action": "color",
-        "values": [
-          255,
-          105,
-          25
-        ]
+        "type": "set_rgb",
+        "r": 255,
+        "g": 105,
+        "b": 25
       },
       {
-        "action": "color",
-        "values": [
-          240,
-          55,
-          20
-        ]
+        "type": "set_rgb",
+        "r": 240,
+        "g": 55,
+        "b": 20
       },
       {
-        "action": "color",
-        "values": [
-          190,
-          20,
-          25
-        ]
+        "type": "set_rgb",
+        "r": 190,
+        "g": 20,
+        "b": 25
       }
     ],
     "delay_seconds": 1.0
@@ -358,68 +274,52 @@
   "Океан": {
     "steps": [
       {
-        "action": "color",
-        "values": [
-          0,
-          35,
-          120
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 35,
+        "b": 120
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          70,
-          190
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 70,
+        "b": 190
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          130,
-          220
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 130,
+        "b": 220
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          190,
-          220
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 190,
+        "b": 220
       },
       {
-        "action": "color",
-        "values": [
-          40,
-          220,
-          200
-        ]
+        "type": "set_rgb",
+        "r": 40,
+        "g": 220,
+        "b": 200
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          190,
-          220
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 190,
+        "b": 220
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          130,
-          220
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 130,
+        "b": 220
       },
       {
-        "action": "color",
-        "values": [
-          0,
-          70,
-          190
-        ]
+        "type": "set_rgb",
+        "r": 0,
+        "g": 70,
+        "b": 190
       }
     ],
     "delay_seconds": 0.9
