@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lamp"
+version = "0.1.0"
+description = "Управление лампами Yeelight по LAN"
+requires-python = ">=3.10"
+dependencies = [
+    "yeelight>=0.7.16",
+    "python-miio>=0.5.12",
+]
+
+[tool.setuptools]
+packages = ["lamp"]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: тест на реальной лампе, нужна переменная YEELIGHT_TEST_IP",
+]
