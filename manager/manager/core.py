@@ -1,12 +1,8 @@
-"""Ядро manager: лампы, режимы, undo и мониторинг. Без UI и без сети."""
+"""Ядро manager: лампы, undo, мониторинг, действия и состояние. Без UI и без сети."""
 
 from __future__ import annotations
 
-import ipaddress
-import json
-import os
 import shutil
-import sys
 import threading
 import time
 from collections import deque
@@ -17,62 +13,25 @@ from lamp import Command, Lamp, LampError
 from lamp.network import discover
 from protocol import Action, ActionResult, LampState, ManagerState
 
-# Прошивка отвечает "client quota exceeded" при частых командах (около 60 в минуту).
-PACE_SECONDS = 1.05
-MAX_MODE_FAILURES = 10
-MAX_UNDO = 20
-LOG_LINES = 200
-DEFAULT_CONFIG = {
-    "server_url": "",
-    "access_key": "",
-    "poll_interval": 1.0,
-    "monitor_interval": 10,
-    "offline_timeout": 60,
-}
+from manager.base import (
+    DEFAULT_CONFIG, LOG_LINES, MAX_UNDO, PACE_SECONDS, bundle_dir,
+    read_json, valid_ipv4, write_json,
+    data_dir as default_data_dir,
+)
+from manager.modes import ModesMixin
 
 
-def _bundle_dir() -> Path:
-    """Папка с default_modes.json: рядом с модулем или внутри PyInstaller-сборки."""
-    return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
-
-
-def _data_dir() -> Path:
-    """Папка с config.json, bulbs.json, modes.json: рядом с exe или в текущей папке."""
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path.cwd()
-
-
-def _read_json(path, default):
-    if not path.is_file():
-        return default
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _write_json(path, data):
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def _valid_ipv4(value):
-    try:
-        return str(ipaddress.IPv4Address(str(value).strip()))
-    except ValueError as ex:
-        raise ValueError(f"неверный IPv4-адрес: {value!r}") from ex
-
-
-class Core:
+class Core(ModesMixin):
     """Потокобезопасное ядро. UI и синхронизация вызывают только его методы."""
 
     def __init__(self, data_dir=None, lamp_factory=Lamp, discover_fn=discover):
-        self.dir = Path(data_dir) if data_dir else _data_dir()
+        self.dir = Path(data_dir) if data_dir else default_data_dir()
         self.dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._lamp_factory = lamp_factory
         self._discover = discover_fn
-        self.config = {**DEFAULT_CONFIG, **_read_json(self.dir / "config.json", {})}
-        self._ips = list(_read_json(self.dir / "bulbs.json", []))
+        self.config = {**DEFAULT_CONFIG, **read_json(self.dir / "config.json", {})}
+        self._ips = list(read_json(self.dir / "bulbs.json", []))
         self._lamps = {}
         self._device_locks = {}
         self._last_call = {}
@@ -81,8 +40,8 @@ class Core:
         self._undo = {}
         self._modes_path = self.dir / "modes.json"
         if not self._modes_path.exists():
-            shutil.copyfile(_bundle_dir() / "default_modes.json", self._modes_path)
-        self._modes = _read_json(self._modes_path, {})
+            shutil.copyfile(bundle_dir() / "default_modes.json", self._modes_path)
+        self._modes = read_json(self._modes_path, {})
         self._runs = {}
         self._errors = {}
         self._log = deque(maxlen=LOG_LINES)
@@ -97,7 +56,7 @@ class Core:
     def update_config(self, **values):
         with self._lock:
             self.config.update(values)
-            _write_json(self.dir / "config.json", self.config)
+            write_json(self.dir / "config.json", self.config)
 
     # ---------- лампы ----------
 
@@ -173,11 +132,11 @@ class Core:
         return f"действие отменено у {ip}"
 
     def add(self, ip):
-        ip = _valid_ipv4(ip)
+        ip = valid_ipv4(ip)
         with self._lock:
             if ip not in self._ips:
                 self._ips.append(ip)
-                _write_json(self.dir / "bulbs.json", self._ips)
+                write_json(self.dir / "bulbs.json", self._ips)
         self.log(f"лампа {ip} добавлена")
         return ip
 
@@ -186,7 +145,7 @@ class Core:
             if ip not in self._ips:
                 raise ValueError(f"лампы {ip} нет в списке")
             self._ips.remove(ip)
-            _write_json(self.dir / "bulbs.json", self._ips)
+            write_json(self.dir / "bulbs.json", self._ips)
             for pool in (self._lamps, self._device_locks, self._last_call, self._status,
                          self._offline_since, self._undo):
                 pool.pop(ip, None)
@@ -197,14 +156,13 @@ class Core:
 
     def discover(self):
         found = self._discover(timeout=2)
-        ips = []
-        for item in found:
-            if item.get("ip"):
-                ips.append(_valid_ipv4(item["ip"]))
+        ips = [valid_ipv4(item["ip"]) for item in found if item.get("ip")]
         for ip in ips:
             self.add(ip)
         self.log(f"поиск: найдено {len(ips)}")
         return ips
+
+    # ---------- мониторинг ----------
 
     def _monitor_once(self):
         with self._lock:
@@ -217,8 +175,7 @@ class Core:
                 now = time.time()
                 with self._lock:
                     since = self._offline_since.setdefault(ip, now)
-                    status = self._status.setdefault(ip, {})
-                    status.update(online=False, props={})
+                    self._status.setdefault(ip, {}).update(online=False, props={})
                 if now - since >= timeout:
                     self.log(f"лампа {ip} недоступна {int(timeout)} с, удаляю")
                     self.remove(ip)
@@ -251,96 +208,6 @@ class Core:
         with self._lock:
             for run in self._runs.values():
                 run["stop"].set()
-
-    # ---------- режимы ----------
-
-    def save_mode(self, name, steps, delay_seconds):
-        name = str(name or "").strip()
-        if not name or "/" in name or "\\" in name:
-            raise ValueError("некорректное имя режима")
-        if not 1 <= len(steps) <= 50:
-            raise ValueError("в режиме от 1 до 50 шагов")
-        delay = float(delay_seconds)
-        if not 0.1 <= delay <= 3600:
-            raise ValueError("пауза от 0.1 до 3600 с")
-        clean = []
-        for step in steps:
-            cmd = Command.from_dict({**step, "ip": "0.0.0.0"})  # проверка параметров
-            data = cmd.to_dict()
-            data.pop("ip")
-            clean.append(data)
-        with self._lock:
-            self._modes[name] = {"steps": clean, "delay_seconds": delay}
-            _write_json(self._modes_path, self._modes)
-        self.log(f"режим «{name}» сохранён")
-
-    def delete_mode(self, name):
-        self.stop_mode(name)
-        with self._lock:
-            if name not in self._modes:
-                raise ValueError(f"режим «{name}» не найден")
-            del self._modes[name]
-            self._errors.pop(name, None)
-            _write_json(self._modes_path, self._modes)
-        self.log(f"режим «{name}» удалён")
-
-    def start_mode(self, name, ip):
-        with self._lock:
-            if name not in self._modes:
-                raise ValueError(f"режим «{name}» не найден")
-            if name in self._runs:
-                raise ValueError(f"режим «{name}» уже запущен")
-            self._lamp(ip)
-            stop = threading.Event()
-            self._runs[name] = {"stop": stop, "ip": ip}
-            self._errors[name] = None
-        threading.Thread(target=self._run_mode, args=(name, ip, stop), daemon=True).start()
-        self.log(f"режим «{name}» запущен на {ip}")
-
-    def stop_mode(self, name):
-        with self._lock:
-            run = self._runs.get(name)
-        if run is not None:
-            run["stop"].set()
-            self.log(f"режим «{name}» остановлен")
-
-    def _run_mode(self, name, ip, stop):
-        failures = 0
-        try:
-            while not stop.is_set():
-                with self._lock:
-                    mode = self._modes.get(name)
-                if mode is None:
-                    return
-                for step in mode["steps"]:
-                    if stop.is_set():
-                        return
-                    try:
-                        cmd = Command.from_dict({**step, "ip": ip}, lamp=self._lamp_for(ip))
-                        self._send(cmd)
-                        failures = 0
-                        self._set_error(name, None)
-                    except (LampError, ValueError) as ex:
-                        failures += 1
-                        self._set_error(name, str(ex))
-                        if failures >= MAX_MODE_FAILURES:
-                            self.log(f"режим «{name}» остановлен после {failures} ошибок")
-                            return
-                        stop.wait(max(mode["delay_seconds"], 1.0))
-                        continue
-                    stop.wait(mode["delay_seconds"])
-        finally:
-            with self._lock:
-                if self._runs.get(name, {}).get("stop") is stop:
-                    del self._runs[name]
-
-    def _lamp_for(self, ip):
-        with self._lock:
-            return self._lamp(ip)
-
-    def _set_error(self, name, error):
-        with self._lock:
-            self._errors[name] = error
 
     # ---------- действия из сервера и состояние ----------
 
