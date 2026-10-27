@@ -8,6 +8,7 @@ build/
 .env
 config.json
 bulbs.json
+modes.json
 *.db
 *.log
 .pytest_cache/
