@@ -1,0 +1,427 @@
+{
+  "Радуга": {
+    "steps": [
+      {
+        "action": "color",
+        "values": [
+          255,
+          0,
+          0
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          127,
+          0
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          255,
+          0
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          127,
+          255,
+          0
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          255,
+          0
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          255,
+          127
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          255,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          127,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          0,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          127,
+          0,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          0,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          0,
+          127
+        ]
+      }
+    ],
+    "delay_seconds": 0.1
+  },
+  "Фиолетовое переливание": {
+    "steps": [
+      {
+        "action": "color",
+        "values": [
+          75,
+          0,
+          130
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          95,
+          0,
+          175
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          128,
+          0,
+          210
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          160,
+          32,
+          240
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          186,
+          85,
+          211
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          218,
+          112,
+          214
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          186,
+          85,
+          211
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          160,
+          32,
+          240
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          128,
+          0,
+          210
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          95,
+          0,
+          175
+        ]
+      }
+    ],
+    "delay_seconds": 0.8
+  },
+  "Северное сияние": {
+    "steps": [
+      {
+        "action": "color",
+        "values": [
+          0,
+          128,
+          128
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          200,
+          200
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          255,
+          165
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          128,
+          0,
+          255
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          186,
+          85,
+          211
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          238,
+          130,
+          238
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          138,
+          43,
+          226
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          200,
+          150
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          180,
+          130
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          128,
+          128
+        ]
+      }
+    ],
+    "delay_seconds": 1.2
+  },
+  "Закат": {
+    "steps": [
+      {
+        "action": "color",
+        "values": [
+          120,
+          0,
+          30
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          190,
+          20,
+          25
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          240,
+          55,
+          20
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          105,
+          25
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          165,
+          45
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          205,
+          95
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          165,
+          45
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          255,
+          105,
+          25
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          240,
+          55,
+          20
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          190,
+          20,
+          25
+        ]
+      }
+    ],
+    "delay_seconds": 1.0
+  },
+  "Океан": {
+    "steps": [
+      {
+        "action": "color",
+        "values": [
+          0,
+          35,
+          120
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          70,
+          190
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          130,
+          220
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          190,
+          220
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          40,
+          220,
+          200
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          190,
+          220
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          130,
+          220
+        ]
+      },
+      {
+        "action": "color",
+        "values": [
+          0,
+          70,
+          190
+        ]
+      }
+    ],
+    "delay_seconds": 0.9
+  }
+}
