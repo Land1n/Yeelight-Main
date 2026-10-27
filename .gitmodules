@@ -7,3 +7,6 @@
 [submodule "server"]
 	path = server
 	url = https://github.com/Land1n/Yeelight-Remote.git
+[submodule "protocol"]
+	path = protocol
+	url = https://github.com/Land1n/Yeelight-Protocol.git
