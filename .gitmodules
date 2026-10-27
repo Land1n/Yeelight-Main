@@ -1,0 +1,9 @@
+[submodule "lamp"]
+	path = lamp
+	url = https://github.com/Land1n/Yeelight-Logic.git
+[submodule "manager"]
+	path = manager
+	url = https://github.com/Land1n/Yeelight-Manager.git
+[submodule "server"]
+	path = server
+	url = https://github.com/Land1n/Yeelight-Remote.git
